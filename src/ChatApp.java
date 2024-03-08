@@ -18,7 +18,7 @@ public class ChatApp extends Application {
         controller = fxmlLoader.getController();
 
         primaryStage.setScene(new Scene(root));
-        primaryStage.setTitle("Image Sender");
+        primaryStage.setTitle("Chat App");
         primaryStage.show();
 
     }
