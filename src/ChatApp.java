@@ -19,6 +19,7 @@ public class ChatApp extends Application {
 
         primaryStage.setScene(new Scene(root));
         primaryStage.setTitle("Chat App");
+        primaryStage.setResizable(false);
         primaryStage.show();
 
     }
