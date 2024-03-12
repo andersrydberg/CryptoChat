@@ -24,4 +24,14 @@ public class ChatApp extends Application {
 
     }
 
+    /**
+     * Prepare the application for shutdown. Called whenever the user
+     * makes an exit request, e.g. presses the "X" button.
+     */
+    @Override
+    public void stop() {
+        controller.shutdown();
+    }
+
+
 }
