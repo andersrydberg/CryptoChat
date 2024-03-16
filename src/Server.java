@@ -17,21 +17,16 @@ public class Server extends Task<Void> {
 
     @Override
     protected Void call() throws Exception {
-        // set timeout to 0.5 seconds so that we can check for user cancelling
-        serverSocket.setSoTimeout(500);
-
         while (true) {
             try {
                 Socket socket = serverSocket.accept();
-                chatController.acceptConnection(socket);
-                if (isCancelled()) {
-                    break;
-                }
 
-            } catch (SocketTimeoutException e) {
-                if (isCancelled()) {
-                    break;
-                }
+                // if ()
+
+                chatController.acceptConnection(socket);
+
+            } catch (Exception e) {
+                break;
             }
         }
         return null;
