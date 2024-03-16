@@ -1,5 +1,4 @@
 import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -7,23 +6,24 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.util.concurrent.ExecutionException;
+
 
 public class ChatController {
 
     private static final String NO_SESSION_MSG = "No ongoing session. Enter the IP address of your contact and press Start to start a session.";
     private static final int DEFAULT_PORT = 27119;
-    private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 
     private ServerStartupTask serverStartupTask;
     private ServerSocket serverSocket;
     private Socket currentSessionSocket;
     private ButtonState buttonState = ButtonState.START;
-    private ConnectionTask connectionTask;
+    private OutgoingConnectionTask outgoingConnectionTask;
 
     private int noOfRetries = 0;
 
@@ -69,7 +69,7 @@ public class ChatController {
         }
 
         chatArea.appendText(String.format(
-                "%s: Server started locally on port %s. Listening for incoming connections.",
+                "%s: Server started locally on port %s. Listening for incoming connections.\n",
                 getTimeStamp(),
                 serverSocket.getLocalPort()
         ));
@@ -121,19 +121,19 @@ public class ChatController {
         ipField.setEditable(false);
         mainButton.setText("Cancel");
 
-        connectionTask = new ConnectionTask(ipField.getText().trim(), DEFAULT_PORT);
-        connectionTask.setOnSucceeded(this::connectionSucceededHandler);
-        connectionTask.setOnFailed(this::connectionFailedHandler);
+        outgoingConnectionTask = new OutgoingConnectionTask(ipField.getText().trim(), DEFAULT_PORT);
+        outgoingConnectionTask.setOnSucceeded(this::outgoingConnectionSucceeded);
+        outgoingConnectionTask.setOnFailed(this::outgoingConnectionFailed);
 
         buttonState = ButtonState.CANCEL;
 
-        Thread thread = new Thread(connectionTask);
+        Thread thread = new Thread(outgoingConnectionTask);
         thread.setDaemon(true);
         thread.start();
     }
 
     private void cancelSession() {
-        connectionTask.cancel();
+        outgoingConnectionTask.cancel();
 
         ipField.setEditable(true);
         mainButton.setText("Start session");
@@ -145,12 +145,22 @@ public class ChatController {
             return;
         }
 
-
+        try {
+            currentSessionSocket.close();
+        } catch (IOException e) {
+            // ignore;
+        } finally {
+            currentSessionSocket = null;
+            ipField.setEditable(true);
+            mainButton.setText("Start session");
+            buttonState = ButtonState.START;
+            displayText.setText(NO_SESSION_MSG);
+        }
     }
 
-    private void connectionSucceededHandler(WorkerStateEvent workerStateEvent) {
+    private void outgoingConnectionSucceeded(WorkerStateEvent workerStateEvent) {
         try {
-            currentSessionSocket = connectionTask.get();
+            currentSessionSocket = outgoingConnectionTask.get();
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException();
@@ -161,8 +171,13 @@ public class ChatController {
         buttonState = ButtonState.STOP;
     }
 
-    private void connectionFailedHandler(WorkerStateEvent workerStateEvent) {
+    private void outgoingConnectionFailed(WorkerStateEvent workerStateEvent) {
+        String host = ((OutgoingConnectionTask)workerStateEvent.getSource()).getHost();
+        chatArea.appendText(String.format("%s: Could not connect to %s.\n", getTimeStamp(), host));
 
+        ipField.setEditable(true);
+        mainButton.setText("Start session");
+        buttonState = ButtonState.START;
     }
 
     public void sendMessageHandler(ActionEvent event) {
@@ -171,14 +186,28 @@ public class ChatController {
 
 
     /**
-     * Closes the server socket so that any associated threads die.
+     * Closes the server socket and current session socket, if they exist.
      */
     public void shutdown() {
-        // TODO
+        if (serverSocket != null) {
+            try {
+                serverSocket.close();
+            } catch (IOException e) {
+                // ignore;
+            }
+        }
+
+        if (currentSessionSocket != null) {
+            try {
+                currentSessionSocket.close();
+            } catch (IOException e) {
+                // ignore
+            }
+        }
     }
 
     /**
-     * Convenience method for creating timestamps
+     * Convenience method for creating timestamps.
      */
     private String getTimeStamp() {
         return sdf.format(new Timestamp(System.currentTimeMillis()));
