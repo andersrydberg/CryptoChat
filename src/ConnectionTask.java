@@ -7,9 +7,8 @@ import java.net.Socket;
 
 /**
  * Task assigned with connecting to the specified host on default port ... Uses a stream socket.
- * TODO: should perhaps return the Socket?
  */
-public class ConnectionTask extends Task<Void> {
+public class ConnectionTask extends Task<Socket> {
 
     private final String host;
     private final int port;
@@ -18,29 +17,25 @@ public class ConnectionTask extends Task<Void> {
         this.port = port;
     }
 
+    /**
+     * @return the stream socket, if connection is successful
+     * @throws Exception if the connection failed for some reason
+     */
     @Override
-    protected Void call() throws Exception {
+    protected Socket call() throws Exception {
         Socket socket = new Socket();
         try {
             InetSocketAddress inetSocketAddress = new InetSocketAddress(host, port);
-            // set timeout to 3 seconds so that blocking calls will not block forever
-            // e.g. if the remote host is unresponsive
-            socket.connect(inetSocketAddress, 3000);
-            socket.setSoTimeout(3000);
+            socket.connect(inetSocketAddress);
 
+            // get the streams, but don't use them (check for exceptions)
             ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
             ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-            String address = socket.getInetAddress().toString();
 
-            updateMessage("Connection established with " + address);
-
-            while (true) {
-                // TODO: communicate
-                break;
-            }
         } finally {
+            // close if an exception is raised
             socket.close();
         }
-        return null;
+        return socket;
     }
 }
