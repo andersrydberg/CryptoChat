@@ -2,7 +2,7 @@ import javafx.concurrent.Task;
 
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
+
 
 public class Server extends Task<Void> {
 
@@ -20,12 +20,9 @@ public class Server extends Task<Void> {
         while (true) {
             try {
                 Socket socket = serverSocket.accept();
-
-                // if ()
-
                 chatController.acceptConnection(socket);
-
             } catch (Exception e) {
+                e.printStackTrace();
                 break;
             }
         }

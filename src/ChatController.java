@@ -7,6 +7,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Timestamp;
@@ -27,14 +28,24 @@ public class ChatController {
 
     private int noOfRetries = 0;
 
-    public TextField ipField;
-    public Button mainButton;
-    public Text displayText;
-    public VBox publicKeyBox;
-    public TextField ownKeyField;
-    public TextField contactPublicKey;
-    public TextArea chatArea;
-    public TextField chatInputField;
+    @FXML
+    private TextField ipField;
+    @FXML
+    private Button mainButton;
+    @FXML
+    private Text displayText;
+    @FXML
+    private VBox publicKeyBox;
+    @FXML
+    private TextField ownKeyField;
+    @FXML
+    private TextField contactPublicKey;
+    @FXML
+    private TextArea chatArea;
+    @FXML
+    private TextField chatInputField;
+
+
 
     /**
      * Runs after the controller is constructed.
@@ -45,7 +56,10 @@ public class ChatController {
     }
 
 
+
+    /*
     // methods related to server startup and
+     */
 
     /**
      *  Starts a server socket on the default port.
@@ -90,21 +104,42 @@ public class ChatController {
 
     // called by background thread
     public void acceptConnection(Socket socket) {
-        // only accept one active session at a time
-        if (currentSessionSocket == null) {
-            String inetAddress = socket.getInetAddress().toString();
+        ObjectOutputStream oos;
 
-            Platform.runLater(() -> {
-                var result = new Alert(Alert.AlertType.CONFIRMATION,
-                        String.format("Accept connection from %s?", inetAddress))
-                        .showAndWait();
-                if (result.isPresent() && result.get() == ButtonType.OK) {
-                    currentSessionSocket = socket;
-                }
-            });
+        try (socket) {
+            oos = new ObjectOutputStream(socket.getOutputStream());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
         }
+
+        // only accept one active session at a time
+        if (currentSessionSocket != null) {
+            try {
+                oos.writeObject(Message.DECLINED);
+                oos.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return;
+        }
+
+        String inetAddress = socket.getInetAddress().toString();
+        Platform.runLater(() -> {
+            var result = new Alert(Alert.AlertType.CONFIRMATION,
+                    String.format("Accept connection from %s?", inetAddress))
+                    .showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                currentSessionSocket = socket;
+            }
+        });
     }
 
+
+
+    /*
+    // action handlers, etc.
+     */
 
     /**
      * Called when user presses the Start/Cancel/Stop button.
@@ -205,6 +240,14 @@ public class ChatController {
             }
         }
     }
+
+
+
+
+
+    /*
+    // Other methods
+     */
 
     /**
      * Convenience method for creating timestamps.
