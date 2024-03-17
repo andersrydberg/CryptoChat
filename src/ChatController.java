@@ -7,11 +7,13 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.util.concurrent.ExecutionException;
 
 
 public class ChatController {
@@ -108,31 +110,41 @@ public class ChatController {
 
         try (socket) {
             oos = new ObjectOutputStream(socket.getOutputStream());
-        } catch (IOException e) {
-            e.printStackTrace();
-            return;
-        }
 
-        // only accept one active session at a time
-        if (currentSessionSocket != null) {
-            try {
+            // only accept one active session at a time
+            if (currentSessionSocket != null) {
                 oos.writeObject(Message.DECLINED);
                 oos.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
+                socket.close();
+                return;
             }
-            return;
+
+            // prompt user for confirmation
+            String inetAddress = socket.getInetAddress().toString();
+            var confirm = new GetConfirmationFromUserTask(inetAddress);
+            Platform.runLater(confirm);
+
+            try {
+                if (confirm.get()) {
+                    currentSessionSocket = socket;
+                    oos.writeObject(Message.ACCEPTED);
+                    oos.flush();
+                    // start new task for interaction
+                } else {
+                    oos.writeObject(Message.DECLINED);
+                    oos.flush();
+                    socket.close();
+                }
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+                socket.close();
+            }
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
-        String inetAddress = socket.getInetAddress().toString();
-        Platform.runLater(() -> {
-            var result = new Alert(Alert.AlertType.CONFIRMATION,
-                    String.format("Accept connection from %s?", inetAddress))
-                    .showAndWait();
-            if (result.isPresent() && result.get() == ButtonType.OK) {
-                currentSessionSocket = socket;
-            }
-        });
     }
 
 
