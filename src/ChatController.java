@@ -7,13 +7,15 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
 import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 
 public class ChatController {
@@ -22,11 +24,14 @@ public class ChatController {
     private static final int DEFAULT_PORT = 27119;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 
+    private ExecutorService threadPool;
+
     private ServerStartupTask serverStartupTask;
     private ServerSocket serverSocket;
     private Socket currentSessionSocket;
-    private ButtonState buttonState = ButtonState.START;
     private OutgoingConnectionTask outgoingConnectionTask;
+
+    private ButtonState buttonState = ButtonState.START;
 
     private int noOfRetries = 0;
 
@@ -53,8 +58,19 @@ public class ChatController {
      * Runs after the controller is constructed.
      */
     @FXML
-    public void initialize() {
-        startupServer();
+    private void initialize() {
+        threadPool = Executors.newFixedThreadPool(10);
+        startupServer(); // delete this when initBackend finished
+        initBackend();
+    }
+
+    //
+    private void initBackend() {
+        Backend backend = new Backend(this);
+
+        Thread thread = new Thread(backend);
+        thread.setDaemon(true);
+        thread.start();
     }
 
 
@@ -102,10 +118,11 @@ public class ChatController {
             noOfRetries++;
             startupServer();
         }
+        // display: could not start server, cannot receive incoming requests
     }
 
     // called by background thread
-    public void acceptConnection(Socket socket) {
+    public void tryConnection(Socket socket) {
         ObjectOutputStream oos;
 
         try (socket) {
@@ -159,7 +176,7 @@ public class ChatController {
     public void buttonHandler(ActionEvent event) {
         switch (buttonState) {
             case START -> startSession();
-            case CANCEL -> cancelSession();
+            case CANCEL -> cancelConnection();
             case STOP -> stopSession();
         }
     }
@@ -179,8 +196,8 @@ public class ChatController {
         thread.start();
     }
 
-    private void cancelSession() {
-        outgoingConnectionTask.cancel();
+    private void cancelConnection() {
+        outgoingConnectionTask.shutdown();
 
         ipField.setEditable(true);
         mainButton.setText("Start session");
@@ -188,15 +205,12 @@ public class ChatController {
     }
 
     private void stopSession() {
-        if (currentSessionSocket == null) {
-            return;
-        }
-
         try {
             currentSessionSocket.close();
         } catch (IOException e) {
             // ignore;
         } finally {
+            chatInputField.setEditable(false);
             currentSessionSocket = null;
             ipField.setEditable(true);
             mainButton.setText("Start session");
@@ -213,8 +227,9 @@ public class ChatController {
             throw new RuntimeException();
         }
 
+        ipField.setEditable(false);
         mainButton.setText("Stop session");
-        mainButton.setDisable(false);
+        chatInputField.setEditable(true);
         buttonState = ButtonState.STOP;
     }
 
@@ -268,4 +283,11 @@ public class ChatController {
         return sdf.format(new Timestamp(System.currentTimeMillis()));
     }
 
+    public boolean hasOngoingSession() {
+        return currentSessionSocket != null;
+    }
+
+    public void receiveSocket(Socket socket) {
+        currentSessionSocket = socket;
+    }
 }
