@@ -28,6 +28,7 @@ public class Server2 implements Runnable {
             return;
         }
 
+        backend.serverStarted();
 
         while (active) {
             try {

@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
-public class Backend implements Runnable {
+public class Backend {
     private final ChatController chatController;
     private Server2 server;
     private Socket ongoingSession;
@@ -16,9 +16,11 @@ public class Backend implements Runnable {
         this.chatController = chatController;
     }
 
-    @Override
-    public void run() {
-        // start server
+    public void start() {
+        startServer();
+    }
+
+    private void startServer() {
         server = new Server2(this);
 
         Thread thread = new Thread(server);
@@ -28,7 +30,16 @@ public class Backend implements Runnable {
 
 
     // methods for reacting to server events
+
+    public void serverStarted() {
+        logMessage("Server started...");
+    }
+
     public void serverStartupError() {
+        if (server != null) {
+            server.deactivate();
+        }
+        startServer();
     }
 
     /**
@@ -40,7 +51,7 @@ public class Backend implements Runnable {
 
         if (ongoingSession != null) {
             closeConnection(socket);
-            // log: request from ... rejected: ongoing session
+            logMessage("request from ... rejected: ongoing session");
             return;
         }
 
@@ -61,14 +72,14 @@ public class Backend implements Runnable {
         try {
             if (confirm.get()) {
                 ongoingSession = socket;
-                // log: connection with ... established
+                logMessage("connection with ... established");
             } else {
                 closeConnection(socket);
-                // log: request from ... denied
+                logMessage("request from ... denied");
             }
         } catch (Exception e) {
             closeConnection(socket);
-            // log: could not establish connection to ...
+            logMessage("could not establish connection to ...");
         }
     }
 
@@ -83,4 +94,14 @@ public class Backend implements Runnable {
     }
 
     // methods for reacting to user input
+
+
+    // other methods
+
+    private void logMessage(String message) {
+        Platform.runLater(() -> {
+            chatController.appendToChat(message);
+        });
+    }
+
 }

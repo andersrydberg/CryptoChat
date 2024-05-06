@@ -1,4 +1,3 @@
-import javafx.application.Platform;
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -7,15 +6,9 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
 
 
 public class ChatController {
@@ -23,17 +16,12 @@ public class ChatController {
     private static final String NO_SESSION_MSG = "No ongoing session. Enter the IP address of your contact and press Start to start a session.";
     private static final int DEFAULT_PORT = 27119;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
-
-    private ExecutorService threadPool;
-
-    private ServerStartupTask serverStartupTask;
-    private ServerSocket serverSocket;
     private Socket currentSessionSocket;
     private OutgoingConnectionTask outgoingConnectionTask;
 
     private ButtonState buttonState = ButtonState.START;
 
-    private int noOfRetries = 0;
+    // private int noOfRetries = 0;
 
     @FXML
     private TextField ipField;
@@ -59,109 +47,10 @@ public class ChatController {
      */
     @FXML
     private void initialize() {
-        threadPool = Executors.newFixedThreadPool(10);
-        startupServer(); // delete this when initBackend finished
-        initBackend();
-    }
-
-    //
-    private void initBackend() {
+        // threadPool = Executors.newFixedThreadPool(10);
+        // startupServer();
         Backend backend = new Backend(this);
-
-        Thread thread = new Thread(backend);
-        thread.setDaemon(true);
-        thread.start();
-    }
-
-
-
-    /*
-    // methods related to server startup and
-     */
-
-    /**
-     *  Starts a server socket on the default port.
-     */
-    private void startupServer() {
-        serverStartupTask = new ServerStartupTask(DEFAULT_PORT);
-        serverStartupTask.setOnSucceeded(this::serverStarted);
-        serverStartupTask.setOnFailed(this::serverFailed);
-
-        Thread thread = new Thread(serverStartupTask);
-        thread.setDaemon(true);
-        thread.start();
-    }
-
-    private void serverStarted(WorkerStateEvent workerStateEvent) {
-        try {
-            serverSocket = serverStartupTask.get();
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException();
-        }
-
-        chatArea.appendText(String.format(
-                "%s: Server started locally on port %s. Listening for incoming connections.\n",
-                getTimeStamp(),
-                serverSocket.getLocalPort()
-        ));
-
-        Server server = new Server(this, serverSocket);
-
-        Thread thread = new Thread(server);
-        thread.setDaemon(true);
-        thread.start();
-    }
-
-    private void serverFailed(WorkerStateEvent workerStateEvent) {
-        while (noOfRetries < 5) {
-            noOfRetries++;
-            startupServer();
-        }
-        // display: could not start server, cannot receive incoming requests
-    }
-
-    // called by background thread
-    public void tryConnection(Socket socket) {
-        ObjectOutputStream oos;
-
-        try (socket) {
-            oos = new ObjectOutputStream(socket.getOutputStream());
-
-            // only accept one active session at a time
-            if (currentSessionSocket != null) {
-                oos.writeObject(Message.DECLINED);
-                oos.flush();
-                socket.close();
-                return;
-            }
-
-            // prompt user for confirmation
-            String inetAddress = socket.getInetAddress().toString();
-            var confirm = new GetConfirmationFromUserTask(inetAddress);
-            Platform.runLater(confirm);
-
-            try {
-                if (confirm.get()) {
-                    currentSessionSocket = socket;
-                    oos.writeObject(Message.ACCEPTED);
-                    oos.flush();
-                    // start new task for interaction
-                } else {
-                    oos.writeObject(Message.DECLINED);
-                    oos.flush();
-                    socket.close();
-                }
-            } catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-                socket.close();
-            }
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
+        backend.start();
     }
 
 
@@ -251,21 +140,21 @@ public class ChatController {
      * Closes the server socket and current session socket, if they exist.
      */
     public void shutdown() {
-        if (serverSocket != null) {
-            try {
-                serverSocket.close();
-            } catch (IOException e) {
-                // ignore;
-            }
-        }
-
-        if (currentSessionSocket != null) {
-            try {
-                currentSessionSocket.close();
-            } catch (IOException e) {
-                // ignore
-            }
-        }
+//        if (serverSocket != null) {
+//            try {
+//                serverSocket.close();
+//            } catch (IOException e) {
+//                // ignore;
+//            }
+//        }
+//
+//        if (currentSessionSocket != null) {
+//            try {
+//                currentSessionSocket.close();
+//            } catch (IOException e) {
+//                // ignore
+//            }
+//        }
     }
 
 
@@ -275,6 +164,14 @@ public class ChatController {
     /*
     // Other methods
      */
+
+    public void appendToChat(String message) {
+        chatArea.appendText(String.format(
+                "%s: %s\n",
+                getTimeStamp(),
+                message
+        ));
+    }
 
     /**
      * Convenience method for creating timestamps.
