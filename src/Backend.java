@@ -8,8 +8,10 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 public class Backend {
+    private static final int DEFAULT_PORT = 27119;
+
     private final ChatController chatController;
-    private Server2 server;
+    private Server server;
     private Socket ongoingSession;
 
     public Backend(ChatController chatController) {
@@ -21,7 +23,7 @@ public class Backend {
     }
 
     private void startServer() {
-        server = new Server2(this);
+        server = new Server(this);
 
         Thread thread = new Thread(server);
         thread.setDaemon(true);
@@ -36,8 +38,11 @@ public class Backend {
     }
 
     public void serverStartupError() {
-        if (server != null) {
-            server.deactivate();
+        logMessage("Error on server startup. Trying again in 1 sec...");
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            return;
         }
         startServer();
     }
@@ -47,7 +52,7 @@ public class Backend {
      *
      * @param socket
      */
-    public void tryConnection(Socket socket) {
+    public void incomingConnection(Socket socket) {
 
         if (ongoingSession != null) {
             closeConnection(socket);
@@ -59,7 +64,7 @@ public class Backend {
         final String inetAddress = socket.getInetAddress().toString();
         var confirm = new Task<Boolean>() {
             @Override
-            protected Boolean call() throws Exception {
+            protected Boolean call() {
                 var result = new Alert(Alert.AlertType.CONFIRMATION,
                         String.format("Accept connection from %s?", inetAddress))
                         .showAndWait();
@@ -93,15 +98,61 @@ public class Backend {
         }
     }
 
-    // methods for reacting to user input
+    // methods for reacting to user input and events triggered subsequently
+
+    public void outgoingConnection(String address) {
+        if (ongoingSession != null) {
+            throw new RuntimeException("Session already ongoing. Send button should be inactivated.");
+        }
+
+        OutgoingConnectionTask outgoingConnectionTask = new OutgoingConnectionTask(this, address, DEFAULT_PORT);
+
+        Thread thread = new Thread(outgoingConnectionTask);
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    public void receiveSocket(Socket socket) {
+        ongoingSession = socket;
+        logMessage("outgoing connection established with ...");
+        Platform.runLater(chatController::outgoingConnectionEstablished);
+    }
+
+    public void outgoingConnectionError() {
+        logMessage("could not establish an outgoing connection with ...");
+        Platform.runLater(chatController::outgoingConnectionFailed);
+    }
+
+
+    public void closeSession() {
+        if (ongoingSession == null) {
+            throw new RuntimeException("No ongoing session. Cancel button should not be active");
+        }
+
+        Socket sessionToClose = ongoingSession;
+        ongoingSession = null;
+
+        var task = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    sessionToClose.close();
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
+        };
+
+        Platform.runLater(task);
+        logMessage("Session ... closed");
+    }
+
+
 
 
     // other methods
 
     private void logMessage(String message) {
-        Platform.runLater(() -> {
-            chatController.appendToChat(message);
-        });
+        Platform.runLater(() -> chatController.appendToChat(message));
     }
-
 }

@@ -3,7 +3,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
-public class Server2 implements Runnable {
+public class Server implements Runnable {
 
 
     private static final int DEFAULT_PORT = 27119;
@@ -11,7 +11,7 @@ public class Server2 implements Runnable {
     private ServerSocket serverSocket;
     private boolean active = true;
 
-    public Server2(Backend backend) {
+    public Server(Backend backend) {
         this.backend = backend;
     }
 
@@ -33,7 +33,7 @@ public class Server2 implements Runnable {
         while (active) {
             try {
                 Socket socket = serverSocket.accept();
-                backend.tryConnection(socket);
+                backend.incomingConnection(socket);
 
             } catch (SocketTimeoutException e) {
                 // ignore

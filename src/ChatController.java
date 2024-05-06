@@ -1,4 +1,3 @@
-import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -14,10 +13,12 @@ import java.text.SimpleDateFormat;
 public class ChatController {
 
     private static final String NO_SESSION_MSG = "No ongoing session. Enter the IP address of your contact and press Start to start a session.";
-    private static final int DEFAULT_PORT = 27119;
     private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
+
+
+    private final Backend backend = new Backend(this);
+
     private Socket currentSessionSocket;
-    private OutgoingConnectionTask outgoingConnectionTask;
 
     private ButtonState buttonState = ButtonState.START;
 
@@ -49,7 +50,6 @@ public class ChatController {
     private void initialize() {
         // threadPool = Executors.newFixedThreadPool(10);
         // startupServer();
-        Backend backend = new Backend(this);
         backend.start();
     }
 
@@ -73,20 +73,14 @@ public class ChatController {
     private void startSession() {
         ipField.setEditable(false);
         mainButton.setText("Cancel");
-
-        outgoingConnectionTask = new OutgoingConnectionTask(ipField.getText().trim(), DEFAULT_PORT);
-        outgoingConnectionTask.setOnSucceeded(this::outgoingConnectionSucceeded);
-        outgoingConnectionTask.setOnFailed(this::outgoingConnectionFailed);
-
         buttonState = ButtonState.CANCEL;
 
-        Thread thread = new Thread(outgoingConnectionTask);
-        thread.setDaemon(true);
-        thread.start();
+        backend.outgoingConnection(ipField.getText().trim());
     }
 
     private void cancelConnection() {
-        outgoingConnectionTask.shutdown();
+        backend.closeSession();
+        //outgoingConnectionTask.shutdown();
 
         ipField.setEditable(true);
         mainButton.setText("Start session");
@@ -108,24 +102,14 @@ public class ChatController {
         }
     }
 
-    private void outgoingConnectionSucceeded(WorkerStateEvent workerStateEvent) {
-        try {
-            currentSessionSocket = outgoingConnectionTask.get();
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException();
-        }
-
+    public void outgoingConnectionEstablished() {
         ipField.setEditable(false);
         mainButton.setText("Stop session");
         chatInputField.setEditable(true);
         buttonState = ButtonState.STOP;
     }
 
-    private void outgoingConnectionFailed(WorkerStateEvent workerStateEvent) {
-        String host = ((OutgoingConnectionTask)workerStateEvent.getSource()).getHost();
-        chatArea.appendText(String.format("%s: Could not connect to %s.\n", getTimeStamp(), host));
-
+    public void outgoingConnectionFailed() {
         ipField.setEditable(true);
         mainButton.setText("Start session");
         buttonState = ButtonState.START;
