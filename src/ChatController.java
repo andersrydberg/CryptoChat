@@ -83,7 +83,7 @@ public class ChatController {
     private void stopSession() {
         backend.closeSession();
 
-        chatInputField.setEditable(false);
+        chatInputField.setDisable(true);
         ipField.setEditable(true);
         mainButton.setText("Start session");
         buttonState = ButtonState.START;
@@ -93,7 +93,7 @@ public class ChatController {
     public void outgoingConnectionEstablished() {
         ipField.setEditable(false);
         mainButton.setText("Stop session");
-        chatInputField.setEditable(true);
+        chatInputField.setDisable(false);
         buttonState = ButtonState.STOP;
     }
 

@@ -55,7 +55,7 @@ public class Backend {
     public void incomingConnection(Socket socket) {
 
         if (ongoingSession != null) {
-            closeConnection(socket);
+            sendMessageToRemoteHost(Message.DECLINED);
             logMessage("request from ... rejected: ongoing session");
             return;
         }
@@ -76,14 +76,16 @@ public class Backend {
 
         try {
             if (confirm.get()) {
+                sendMessageToRemoteHost(Message.ACCEPTED);
                 ongoingSession = socket;
                 logMessage("connection with ... established");
             } else {
-                closeConnection(socket);
+                sendMessageToRemoteHost(Message.DECLINED);
+                closeSession();
                 logMessage("request from ... denied");
             }
         } catch (Exception e) {
-            closeConnection(socket);
+            closeSession();
             logMessage("could not establish connection to ...");
         }
     }
@@ -123,6 +125,11 @@ public class Backend {
         Platform.runLater(chatController::outgoingConnectionFailed);
     }
 
+    public void outgoingConnectionRefused() {
+        logMessage("remote host rejected connection");
+        Platform.runLater(chatController::outgoingConnectionFailed);
+    }
+
 
     public void closeSession() {
         if (ongoingSession == null) {
@@ -143,7 +150,9 @@ public class Backend {
             }
         };
 
-        Platform.runLater(closeTask);
+        Thread thread = new Thread(closeTask);
+        thread.setDaemon(true);
+        thread.start();
         logMessage("Session ... closed");
     }
 
@@ -155,4 +164,28 @@ public class Backend {
     private void logMessage(String message) {
         Platform.runLater(() -> chatController.appendToChat(message));
     }
+
+    private void sendMessageToRemoteHost(Message message) {
+        if (ongoingSession == null) {
+            throw new RuntimeException("No ongoing session");
+        }
+
+        var sendTask = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    ObjectOutputStream oos = new ObjectOutputStream(ongoingSession.getOutputStream());
+                    oos.writeObject(message);
+                    oos.flush();
+                } catch (IOException e) {
+                    closeSession();
+                }
+            }
+        };
+
+        Thread thread = new Thread(sendTask);
+        thread.setDaemon(true);
+        thread.start();
+    }
+
 }

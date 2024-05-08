@@ -1,7 +1,6 @@
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
@@ -30,11 +29,18 @@ public class OutgoingConnectionTask implements Runnable {
             InetSocketAddress inetSocketAddress = new InetSocketAddress(host, port);
             socket.connect(inetSocketAddress);
 
-            // get the streams, but don't use them (check for exceptions)
-            //ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-            //ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+            try {
+                ObjectInputStream oos = new ObjectInputStream(socket.getInputStream());
+                Message message = (Message) oos.readObject();
+                if (message.equals(Message.ACCEPTED)) {
+                    backend.receiveSocket(socket);
+                } else {
+                    backend.outgoingConnectionRefused();
+                }
+            } catch (Exception e) {
+                backend.outgoingConnectionError();
+            }
 
-            backend.receiveSocket(socket);
         } catch (IOException e) {
             backend.outgoingConnectionError();
         }
