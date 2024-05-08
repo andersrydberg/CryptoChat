@@ -70,7 +70,7 @@
             <Insets />
          </HBox.margin>
          <children>
-            <TextArea fx:id="chatArea" prefHeight="600.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
+            <TextArea fx:id="chatArea" prefHeight="600.0" prefWidth="200.0" VBox.vgrow="ALWAYS" editable="false" />
             <TextField fx:id="chatInputField" disable="true" onAction="#sendMessageHandler" />
          </children></VBox>
    </children>

@@ -31,8 +31,8 @@ public class OutgoingConnectionTask implements Runnable {
             socket.connect(inetSocketAddress);
 
             // get the streams, but don't use them (check for exceptions)
-            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+            //ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            //ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
 
             backend.receiveSocket(socket);
         } catch (IOException e) {
