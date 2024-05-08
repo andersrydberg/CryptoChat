@@ -126,13 +126,13 @@ public class Backend {
 
     public void closeSession() {
         if (ongoingSession == null) {
-            throw new RuntimeException("No ongoing session. Cancel button should not be active");
+            throw new RuntimeException("No ongoing session. Cancel/Stop button should not be active");
         }
 
         Socket sessionToClose = ongoingSession;
         ongoingSession = null;
 
-        var task = new Runnable() {
+        var closeTask = new Runnable() {
             @Override
             public void run() {
                 try {
@@ -143,7 +143,7 @@ public class Backend {
             }
         };
 
-        Platform.runLater(task);
+        Platform.runLater(closeTask);
         logMessage("Session ... closed");
     }
 

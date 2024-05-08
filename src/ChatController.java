@@ -4,8 +4,6 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
-import java.io.IOException;
-import java.net.Socket;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 
@@ -18,11 +16,9 @@ public class ChatController {
 
     private final Backend backend = new Backend(this);
 
-    private Socket currentSessionSocket;
 
     private ButtonState buttonState = ButtonState.START;
 
-    // private int noOfRetries = 0;
 
     @FXML
     private TextField ipField;
@@ -48,8 +44,6 @@ public class ChatController {
      */
     @FXML
     private void initialize() {
-        // threadPool = Executors.newFixedThreadPool(10);
-        // startupServer();
         backend.start();
     }
 
@@ -80,7 +74,6 @@ public class ChatController {
 
     private void cancelConnection() {
         backend.closeSession();
-        //outgoingConnectionTask.shutdown();
 
         ipField.setEditable(true);
         mainButton.setText("Start session");
@@ -88,18 +81,13 @@ public class ChatController {
     }
 
     private void stopSession() {
-        try {
-            currentSessionSocket.close();
-        } catch (IOException e) {
-            // ignore;
-        } finally {
-            chatInputField.setEditable(false);
-            currentSessionSocket = null;
-            ipField.setEditable(true);
-            mainButton.setText("Start session");
-            buttonState = ButtonState.START;
-            displayText.setText(NO_SESSION_MSG);
-        }
+        backend.closeSession();
+
+        chatInputField.setEditable(false);
+        ipField.setEditable(true);
+        mainButton.setText("Start session");
+        buttonState = ButtonState.START;
+        displayText.setText(NO_SESSION_MSG);
     }
 
     public void outgoingConnectionEstablished() {
@@ -164,11 +152,4 @@ public class ChatController {
         return sdf.format(new Timestamp(System.currentTimeMillis()));
     }
 
-    public boolean hasOngoingSession() {
-        return currentSessionSocket != null;
-    }
-
-    public void receiveSocket(Socket socket) {
-        currentSessionSocket = socket;
-    }
 }
