@@ -37,6 +37,8 @@ public class OutgoingConnectionTask implements Runnable {
                 } else {
                     backend.outgoingConnectionRefused();
                 }
+            } catch (ClassCastException e) {
+                // bad grammar
             } catch (Exception e) {
                 backend.outgoingConnectionError();
             }

@@ -1,3 +1,4 @@
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
@@ -16,8 +17,7 @@ public class ChatController {
 
     private final Backend backend = new Backend(this);
 
-
-    private ButtonState buttonState = ButtonState.START;
+    private final SimpleObjectProperty<ButtonState> buttonState = new SimpleObjectProperty<>(ButtonState.START);
 
 
     @FXML
@@ -44,6 +44,24 @@ public class ChatController {
      */
     @FXML
     private void initialize() {
+        buttonState.addListener((observableValue, oldValue, newValue) -> {
+            switch (newValue) {
+                case START -> {
+                    chatInputField.setDisable(true);
+                    ipField.setEditable(true);
+                    mainButton.setText("Start session");
+                }
+                case CANCEL -> {
+                    ipField.setEditable(false);
+                    mainButton.setText("Cancel");
+                }
+                case STOP -> {
+                    ipField.setEditable(false);
+                    mainButton.setText("Stop session");
+                    chatInputField.setDisable(false);
+                }
+            }
+        });
         backend.start();
     }
 
@@ -57,50 +75,36 @@ public class ChatController {
      * Called when user presses the Start/Cancel/Stop button.
      */
     public void buttonHandler(ActionEvent event) {
-        switch (buttonState) {
-            case START -> startSession();
-            case CANCEL -> cancelConnection();
-            case STOP -> stopSession();
+        switch (buttonState.get()) {
+            case START -> startHandler();
+            case CANCEL -> cancelHandler();
+            case STOP -> stopHandler();
         }
     }
 
-    private void startSession() {
-        ipField.setEditable(false);
-        mainButton.setText("Cancel");
-        buttonState = ButtonState.CANCEL;
-
-        backend.outgoingConnection(ipField.getText().trim());
+    private void startHandler() {
+        buttonState.set(ButtonState.CANCEL);
+        backend.initializeOutgoingConnection(ipField.getText().trim());
     }
 
-    private void cancelConnection() {
+    private void cancelHandler() {
         backend.cancelConnection();
-
-        ipField.setEditable(true);
-        mainButton.setText("Start session");
-        buttonState = ButtonState.START;
+        buttonState.set(ButtonState.START);
     }
 
-    private void stopSession() {
+    private void stopHandler() {
         backend.cancelConnection();
-
-        chatInputField.setDisable(true);
-        ipField.setEditable(true);
-        mainButton.setText("Start session");
-        buttonState = ButtonState.START;
-        displayText.setText(NO_SESSION_MSG);
+        buttonState.set(ButtonState.START);
     }
 
+    // called with Platform.runLater
     public void outgoingConnectionEstablished() {
-        ipField.setEditable(false);
-        mainButton.setText("Stop session");
-        chatInputField.setDisable(false);
-        buttonState = ButtonState.STOP;
+        buttonState.set(ButtonState.STOP);
     }
 
+    // called with Platform.runLater
     public void outgoingConnectionFailed() {
-        ipField.setEditable(true);
-        mainButton.setText("Start session");
-        buttonState = ButtonState.START;
+        buttonState.set(ButtonState.START);
     }
 
     public void sendMessageHandler(ActionEvent event) {

@@ -79,10 +79,12 @@ public class Backend {
                 sendMessageToRemoteHost(socket, Message.ACCEPTED);
                 ongoingSession = new OngoingSession(socket, this);
                 logMessage("connection with ... established");
+                Platform.runLater(chatController::outgoingConnectionEstablished);
             } else {
                 sendMessageToRemoteHost(socket, Message.DECLINED);
                 closeSocket(socket);
                 logMessage("request from ... denied");
+                Platform.runLater(chatController::outgoingConnectionFailed);
             }
         } catch (Exception e) {
             closeSocket(socket);
@@ -93,7 +95,7 @@ public class Backend {
 
     // methods for reacting to user input and events triggered subsequently
 
-    public void outgoingConnection(String address) {
+    public void initializeOutgoingConnection(String address) {
         if (ongoingSession != null) {
             throw new RuntimeException("Session already ongoing. Send button should be inactivated.");
         }
