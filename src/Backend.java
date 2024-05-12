@@ -12,7 +12,7 @@ public class Backend {
 
     private final ChatController chatController;
     private Server server;
-    private Socket ongoingSession;
+    private OngoingSession ongoingSession;
 
     public Backend(ChatController chatController) {
         this.chatController = chatController;
@@ -55,7 +55,7 @@ public class Backend {
     public void incomingConnection(Socket socket) {
 
         if (ongoingSession != null) {
-            sendMessageToRemoteHost(Message.DECLINED);
+            sendMessageToRemoteHost(socket, Message.DECLINED);
             logMessage("request from ... rejected: ongoing session");
             return;
         }
@@ -76,29 +76,20 @@ public class Backend {
 
         try {
             if (confirm.get()) {
-                sendMessageToRemoteHost(Message.ACCEPTED);
-                ongoingSession = socket;
+                sendMessageToRemoteHost(socket, Message.ACCEPTED);
+                ongoingSession = new OngoingSession(socket, this);
                 logMessage("connection with ... established");
             } else {
-                sendMessageToRemoteHost(Message.DECLINED);
-                closeSession();
+                sendMessageToRemoteHost(socket, Message.DECLINED);
+                closeSocket(socket);
                 logMessage("request from ... denied");
             }
         } catch (Exception e) {
-            closeSession();
+            closeSocket(socket);
             logMessage("could not establish connection to ...");
         }
     }
 
-    private void closeConnection(Socket socket) {
-        try (socket) {
-            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-            oos.writeObject(Message.DECLINED);
-            oos.flush();
-        } catch (IOException e) {
-            // ignore
-        }
-    }
 
     // methods for reacting to user input and events triggered subsequently
 
@@ -115,7 +106,7 @@ public class Backend {
     }
 
     public void receiveSocket(Socket socket) {
-        ongoingSession = socket;
+        ongoingSession = new OngoingSession(socket, this);
         logMessage("outgoing connection established with ...");
         Platform.runLater(chatController::outgoingConnectionEstablished);
     }
@@ -131,32 +122,18 @@ public class Backend {
     }
 
 
-    public void closeSession() {
-        if (ongoingSession == null) {
-            throw new RuntimeException("No ongoing session. Cancel/Stop button should not be active");
+    private void closeSocket(Socket socket) {
+        try {
+            socket.close();
+        } catch (IOException e) {
+            // ignore
         }
-
-        Socket sessionToClose = ongoingSession;
-        ongoingSession = null;
-
-        var closeTask = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    sessionToClose.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
-        };
-
-        Thread thread = new Thread(closeTask);
-        thread.setDaemon(true);
-        thread.start();
-        logMessage("Session ... closed");
     }
 
-
+    public void cancelConnection() {
+        ongoingSession.cancel();
+        ongoingSession = null;
+    }
 
 
     // other methods
@@ -165,7 +142,7 @@ public class Backend {
         Platform.runLater(() -> chatController.appendToChat(message));
     }
 
-    private void sendMessageToRemoteHost(Message message) {
+    private void sendMessageToRemoteHost(Socket socket, Message message) {
         if (ongoingSession == null) {
             throw new RuntimeException("No ongoing session");
         }
@@ -174,11 +151,11 @@ public class Backend {
             @Override
             public void run() {
                 try {
-                    ObjectOutputStream oos = new ObjectOutputStream(ongoingSession.getOutputStream());
+                    ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
                     oos.writeObject(message);
                     oos.flush();
                 } catch (IOException e) {
-                    closeSession();
+                    closeSocket(socket);
                 }
             }
         };

@@ -30,8 +30,8 @@ public class OutgoingConnectionTask implements Runnable {
             socket.connect(inetSocketAddress);
 
             try {
-                ObjectInputStream oos = new ObjectInputStream(socket.getInputStream());
-                Message message = (Message) oos.readObject();
+                ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+                Message message = (Message) ois.readObject();
                 if (message.equals(Message.ACCEPTED)) {
                     backend.receiveSocket(socket);
                 } else {
