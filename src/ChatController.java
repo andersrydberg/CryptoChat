@@ -141,6 +141,7 @@ public class ChatController {
     // Other methods
      */
 
+    // called with Platform.runLater
     public void appendToChat(String message) {
         chatArea.appendText(String.format(
                 "%s: %s\n",

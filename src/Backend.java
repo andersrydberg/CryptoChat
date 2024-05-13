@@ -38,9 +38,9 @@ public class Backend {
     }
 
     public void serverStartupError() {
-        logMessage("Error on server startup. Trying again in 1 sec...");
+        logMessage("Error on server startup. Trying again in 5 sec...");
         try {
-            Thread.sleep(1000);
+            Thread.sleep(5000);
         } catch (InterruptedException e) {
             return;
         }
@@ -55,7 +55,7 @@ public class Backend {
     public void incomingConnection(Socket socket) {
 
         if (ongoingSession != null) {
-            sendMessageToRemoteHost(socket, Message.DECLINED);
+            sendDecline(socket);
             logMessage("request from ... rejected: ongoing session");
             return;
         }
@@ -76,13 +76,12 @@ public class Backend {
 
         try {
             if (confirm.get()) {
-                sendMessageToRemoteHost(socket, Message.ACCEPTED);
+                sendAccept(socket);
                 ongoingSession = new OngoingSession(socket, this);
                 logMessage("connection with ... established");
                 Platform.runLater(chatController::outgoingConnectionEstablished);
             } else {
-                sendMessageToRemoteHost(socket, Message.DECLINED);
-                closeSocket(socket);
+                sendDecline(socket);
                 logMessage("request from ... denied");
                 Platform.runLater(chatController::outgoingConnectionFailed);
             }
@@ -165,6 +164,15 @@ public class Backend {
         Thread thread = new Thread(sendTask);
         thread.setDaemon(true);
         thread.start();
+    }
+
+    private void sendDecline(Socket socket) {
+        sendMessageToRemoteHost(socket, Message.DECLINED);
+        closeSocket(socket);
+    }
+
+    private void sendAccept(Socket socket) {
+        sendMessageToRemoteHost(socket, Message.ACCEPTED);
     }
 
 }
