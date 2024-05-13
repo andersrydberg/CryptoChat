@@ -146,10 +146,6 @@ public class Backend {
     }
 
     private void sendMessageToRemoteHost(Socket socket, Message message) {
-        if (ongoingSession == null) {
-            throw new RuntimeException("No ongoing session");
-        }
-
         var sendTask = new Runnable() {
             @Override
             public void run() {
