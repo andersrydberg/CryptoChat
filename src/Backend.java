@@ -6,6 +6,7 @@ import javafx.scene.control.ButtonType;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.Arrays;
 
 public class Backend {
     private static final int DEFAULT_PORT = 27119;
@@ -86,6 +87,7 @@ public class Backend {
                 Platform.runLater(chatController::outgoingConnectionFailed);
             }
         } catch (Exception e) {
+            System.err.println(Arrays.toString(e.getStackTrace()));
             closeSocket(socket);
             logMessage("could not establish connection to ...");
         }
