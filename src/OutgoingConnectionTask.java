@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Arrays;
 
 /**
  * Task assigned with connecting to the specified host on default port ... Uses a stream socket.
@@ -38,15 +39,15 @@ public class OutgoingConnectionTask implements Runnable {
                     backend.outgoingConnectionRefused();
                 }
             } catch (ClassCastException e) {
-                System.err.println(e.getMessage());
+                System.err.println(Arrays.toString(e.getStackTrace()));
                 // bad grammar
             } catch (Exception e) {
-                System.err.println(e.getMessage());
+                System.err.println(Arrays.toString(e.getStackTrace()));
                 backend.outgoingConnectionError();
             }
 
         } catch (IOException e) {
-            System.err.println(e.getMessage());
+            System.err.println(Arrays.toString(e.getStackTrace()));
             backend.outgoingConnectionError();
         }
     }
