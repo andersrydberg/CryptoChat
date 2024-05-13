@@ -88,12 +88,12 @@ public class ChatController {
     }
 
     private void cancelHandler() {
-        backend.cancelConnection();
+        backend.cancelOutgoingConnection();
         buttonState.set(ButtonState.START);
     }
 
     private void stopHandler() {
-        backend.cancelConnection();
+        // backend.stopCurrentSession();
         buttonState.set(ButtonState.START);
     }
 

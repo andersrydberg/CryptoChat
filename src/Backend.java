@@ -131,7 +131,7 @@ public class Backend {
         }
     }
 
-    public void cancelConnection() {
+    public void cancelOutgoingConnection() {
         ongoingSession.cancel();
         ongoingSession = null;
     }

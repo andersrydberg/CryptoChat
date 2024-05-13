@@ -38,12 +38,15 @@ public class OutgoingConnectionTask implements Runnable {
                     backend.outgoingConnectionRefused();
                 }
             } catch (ClassCastException e) {
+                System.err.println(e.getMessage());
                 // bad grammar
             } catch (Exception e) {
+                System.err.println(e.getMessage());
                 backend.outgoingConnectionError();
             }
 
         } catch (IOException e) {
+            System.err.println(e.getMessage());
             backend.outgoingConnectionError();
         }
     }
