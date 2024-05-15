@@ -15,7 +15,7 @@ public class SendAcceptedTask extends Task<Void> {
     protected Void call() throws Exception {
         try (socket) {
             ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-            oos.writeObject(Message.ACCEPTED);
+            oos.writeObject(Command.ACCEPTED);
             oos.flush();
         }
         return null;

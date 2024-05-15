@@ -93,7 +93,7 @@ public class ChatController {
     }
 
     private void stopHandler() {
-        // backend.stopCurrentSession();
+        backend.stopCurrentSession();
         buttonState.set(ButtonState.START);
     }
 
@@ -108,7 +108,13 @@ public class ChatController {
     }
 
     public void sendMessageHandler(ActionEvent event) {
+        String message = chatInputField.getText().trim();
 
+        if (message.isBlank()) {
+            return;
+        }
+
+        backend.sendMessage(message);
     }
 
 

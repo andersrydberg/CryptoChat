@@ -5,6 +5,10 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
+/**
+ * Thread runs for as long as the chat session is active.
+ * Main purpose - read messages sent from client, delegate these to the Backend object
+ */
 public class OngoingSession implements Runnable {
 
     private final Socket socket;
@@ -47,12 +51,12 @@ public class OngoingSession implements Runnable {
     private void readFromClient() {
         while (!cancelled) {
             try {
-                Message message = (Message) ois.readObject();
+                Command command = (Command) ois.readObject();
 
-                if (message.equals(Message.DECLINED)) {
+                if (command.equals(Command.DECLINED)) {
                     // remote host has closed
                     break;
-                } else if (message.equals(Message.MESSAGE)) {
+                } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
                 } else {
                     // bad grammar

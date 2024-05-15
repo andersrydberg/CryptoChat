@@ -35,6 +35,6 @@ if at any time localhost cannot parse message from remote host or if remote host
                                                         -> 10
 
  */
-public enum Message implements Serializable {
+public enum Command implements Serializable {
     ACCEPTED, DECLINED, MESSAGE
 }

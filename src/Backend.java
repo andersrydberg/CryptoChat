@@ -6,7 +6,6 @@ import javafx.scene.control.ButtonType;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.Arrays;
 
 public class Backend {
     private static final int DEFAULT_PORT = 27119;
@@ -14,6 +13,7 @@ public class Backend {
     private final ChatController chatController;
     private Server server;
     private OngoingSession ongoingSession;
+    private OutgoingConnectionTask outgoingConnectionTask;  // field so accessible if needs to be cancelled
 
     public Backend(ChatController chatController) {
         this.chatController = chatController;
@@ -49,7 +49,10 @@ public class Backend {
     }
 
     /**
+     * Called when there is an incoming connection from a remote host
      * check if there is an ongoing session, else prompt user
+     * Main flow of execution runs in the Server thread, so should
+     * probably be placed in that class
      *
      * @param socket
      */
@@ -87,7 +90,6 @@ public class Backend {
                 Platform.runLater(chatController::outgoingConnectionFailed);
             }
         } catch (Exception e) {
-            System.err.println(Arrays.toString(e.getStackTrace()));
             closeSocket(socket);
             logMessage("could not establish connection to ...");
         }
@@ -96,12 +98,16 @@ public class Backend {
 
     // methods for reacting to user input and events triggered subsequently
 
+    /**
+     * Called when the user initiates a connection to a remote host
+     * @param address
+     */
     public void initializeOutgoingConnection(String address) {
         if (ongoingSession != null) {
             throw new RuntimeException("Session already ongoing. Send button should be inactivated.");
         }
 
-        OutgoingConnectionTask outgoingConnectionTask = new OutgoingConnectionTask(this, address, DEFAULT_PORT);
+        outgoingConnectionTask = new OutgoingConnectionTask(this, address, DEFAULT_PORT);
 
         Thread thread = new Thread(outgoingConnectionTask);
         thread.setDaemon(true);
@@ -134,10 +140,14 @@ public class Backend {
     }
 
     public void cancelOutgoingConnection() {
+        outgoingConnectionTask.cancel();
+        outgoingConnectionTask = null;
+    }
+
+    public void stopCurrentSession() {
         ongoingSession.cancel();
         ongoingSession = null;
     }
-
 
     // other methods
 
@@ -145,13 +155,13 @@ public class Backend {
         Platform.runLater(() -> chatController.appendToChat(message));
     }
 
-    private void sendMessageToRemoteHost(Socket socket, Message message) {
+    private void sendCommand(Socket socket, Command command) {
         var sendTask = new Runnable() {
             @Override
             public void run() {
                 try {
                     ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-                    oos.writeObject(message);
+                    oos.writeObject(command);
                     oos.flush();
                 } catch (IOException e) {
                     closeSocket(socket);
@@ -165,12 +175,15 @@ public class Backend {
     }
 
     private void sendDecline(Socket socket) {
-        sendMessageToRemoteHost(socket, Message.DECLINED);
+        sendCommand(socket, Command.DECLINED);
         closeSocket(socket);
     }
 
     private void sendAccept(Socket socket) {
-        sendMessageToRemoteHost(socket, Message.ACCEPTED);
+        sendCommand(socket, Command.ACCEPTED);
     }
 
+
+    public void sendMessage(String message) {
+    }
 }
