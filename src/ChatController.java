@@ -15,7 +15,7 @@ public class ChatController {
     private static final SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
 
 
-    private final Backend backend = new Backend(this);
+    private final ChatBackend chatBackend = new ChatBackend(this);
 
     private final SimpleObjectProperty<ButtonState> buttonState = new SimpleObjectProperty<>(ButtonState.START);
 
@@ -62,7 +62,7 @@ public class ChatController {
                 }
             }
         });
-        backend.start();
+        chatBackend.start();
     }
 
 
@@ -84,16 +84,16 @@ public class ChatController {
 
     private void startHandler() {
         buttonState.set(ButtonState.CANCEL);
-        backend.initializeOutgoingConnection(ipField.getText().trim());
+        chatBackend.initializeOutgoingConnection(ipField.getText().trim());
     }
 
     private void cancelHandler() {
-        backend.cancelOutgoingConnection();
+        chatBackend.cancelOutgoingConnection();
         buttonState.set(ButtonState.START);
     }
 
     private void stopHandler() {
-        backend.stopCurrentSession();
+        chatBackend.stopCurrentSession();
         buttonState.set(ButtonState.START);
     }
 
@@ -114,7 +114,7 @@ public class ChatController {
             return;
         }
 
-        backend.sendMessage(message);
+        chatBackend.sendMessage(message);
     }
 
 

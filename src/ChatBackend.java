@@ -7,15 +7,18 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
-public class Backend {
-    private static final int DEFAULT_PORT = 27119;
+public class ChatBackend {
+    private final int DEFAULT_PORT = 27119;
+    private final String SIGNATURE_ALGORITHM = "DSA";
+    private final String MESSAGE_DIGEST_ALGORITHM = "SHA-256";
+    private final int KEY_SIZE = 1024;
 
     private final ChatController chatController;
     private Server server;
-    private OngoingSession ongoingSession;
-    private OutgoingConnectionTask outgoingConnectionTask;  // field so accessible if needs to be cancelled
+    private Session ongoingSession;
+    private OutgoingConnection outgoingConnection;  // field so accessible if needs to be cancelled
 
-    public Backend(ChatController chatController) {
+    public ChatBackend(ChatController chatController) {
         this.chatController = chatController;
     }
 
@@ -56,7 +59,7 @@ public class Backend {
      *
      * @param socket
      */
-    public void incomingConnection(Socket socket) {
+    public void tryIncomingConnection(Socket socket) {
 
         if (ongoingSession != null) {
             sendDecline(socket);
@@ -81,7 +84,7 @@ public class Backend {
         try {
             if (confirm.get()) {
                 sendAccept(socket);
-                ongoingSession = new OngoingSession(socket, this);
+                ongoingSession = new Session(socket, this, SIGNATURE_ALGORITHM, KEY_SIZE);
                 logMessage("connection with ... established");
                 Platform.runLater(chatController::outgoingConnectionEstablished);
             } else {
@@ -107,15 +110,15 @@ public class Backend {
             throw new RuntimeException("Session already ongoing. Send button should be inactivated.");
         }
 
-        outgoingConnectionTask = new OutgoingConnectionTask(this, address, DEFAULT_PORT);
+        outgoingConnection = new OutgoingConnection(this, address, DEFAULT_PORT);
 
-        Thread thread = new Thread(outgoingConnectionTask);
+        Thread thread = new Thread(outgoingConnection);
         thread.setDaemon(true);
         thread.start();
     }
 
     public void receiveSocket(Socket socket) {
-        ongoingSession = new OngoingSession(socket, this);
+        ongoingSession = new Session(socket, this, SIGNATURE_ALGORITHM, KEY_SIZE);
         logMessage("outgoing connection established with ...");
         Platform.runLater(chatController::outgoingConnectionEstablished);
     }
@@ -140,8 +143,8 @@ public class Backend {
     }
 
     public void cancelOutgoingConnection() {
-        outgoingConnectionTask.cancel();
-        outgoingConnectionTask = null;
+        outgoingConnection.cancel();
+        outgoingConnection = null;
     }
 
     public void stopCurrentSession() {

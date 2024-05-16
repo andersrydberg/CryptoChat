@@ -7,12 +7,12 @@ public class Server implements Runnable {
 
 
     private static final int DEFAULT_PORT = 27119;
-    private final Backend backend;
+    private final ChatBackend chatBackend;
     private ServerSocket serverSocket;
     private boolean active = true;
 
-    public Server(Backend backend) {
-        this.backend = backend;
+    public Server(ChatBackend chatBackend) {
+        this.chatBackend = chatBackend;
     }
 
     @Override
@@ -24,16 +24,16 @@ public class Server implements Runnable {
             serverSocket.setSoTimeout(2000);
         } catch (IOException e) {
             e.printStackTrace();
-            backend.serverStartupError();
+            chatBackend.serverStartupError();
             return;
         }
 
-        backend.serverStarted();
+        chatBackend.serverStarted();
 
         while (active) {
             try {
                 Socket socket = serverSocket.accept();
-                backend.incomingConnection(socket);
+                chatBackend.tryIncomingConnection(socket);
 
             } catch (SocketTimeoutException e) {
                 // ignore

@@ -7,14 +7,14 @@ import java.net.Socket;
 /**
  * Task assigned with connecting to the specified host on default port ... Uses a stream socket.
  */
-public class OutgoingConnectionTask implements Runnable {
+public class OutgoingConnection implements Runnable {
 
-    private final Backend backend;
+    private final ChatBackend chatBackend;
     private final String host;
     private final int port;
     private final Socket socket;
-    public OutgoingConnectionTask(Backend backend, String host, int port) {
-        this.backend = backend;
+    public OutgoingConnection(ChatBackend chatBackend, String host, int port) {
+        this.chatBackend = chatBackend;
         this.host = host;
         this.port = port;
         this.socket = new Socket();
@@ -33,18 +33,18 @@ public class OutgoingConnectionTask implements Runnable {
                 ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
                 Command command = (Command) ois.readObject();
                 if (command.equals(Command.ACCEPTED)) {
-                    backend.receiveSocket(socket);
+                    chatBackend.receiveSocket(socket);
                 } else {
-                    backend.outgoingConnectionRefused();
+                    chatBackend.outgoingConnectionRefused();
                 }
             } catch (ClassCastException e) {
                 // bad grammar
             } catch (Exception e) {
-                backend.outgoingConnectionError();
+                chatBackend.outgoingConnectionError();
             }
 
         } catch (IOException e) {
-            backend.outgoingConnectionError();
+            chatBackend.outgoingConnectionError();
         }
     }
 

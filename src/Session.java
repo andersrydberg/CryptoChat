@@ -4,23 +4,31 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 
 /**
  * Thread runs for as long as the chat session is active.
  * Main purpose - read messages sent from client, delegate these to the Backend object
  */
-public class OngoingSession implements Runnable {
+public class Session implements Runnable {
 
     private final Socket socket;
-    private final Backend backend;
+    private final ChatBackend chatBackend;
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
     private boolean cancelled;
 
-    public OngoingSession(Socket socket, Backend backend) {
+    private final String signatureAlgorithm;
+    private final int keySize;
+
+
+    public Session(Socket socket, ChatBackend chatBackend, String signatureAlgorithm, int keySize) {
         this.socket = socket;
-        this.backend = backend;
+        this.chatBackend = chatBackend;
         this.cancelled = false;
+        this.signatureAlgorithm = signatureAlgorithm;
+        this.keySize = keySize;
 
         try {
             socket.setSoTimeout(3000);
@@ -31,8 +39,12 @@ public class OngoingSession implements Runnable {
 
     @Override
     public void run() {
-        try (ObjectInputStream input = new ObjectInputStream(socket.getInputStream())) {
-            this.ois = input;
+        try (ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+        ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
+            this.ois = ois;
+            this.oos = oos;
+
+            initiateKeys();
 
             readFromClient();
 
@@ -47,6 +59,27 @@ public class OngoingSession implements Runnable {
             }
         }
     }
+
+    private void initiateKeys() {
+
+    }
+
+
+    /**
+     * Generates a public/private key pair using the DSA algorithm with 1024 byte keys
+     * @return the KeyPair
+     */
+    private KeyPair getKeyPair() {
+        try {
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance(signatureAlgorithm);
+            keyGen.initialize(keySize);
+            return keyGen.generateKeyPair();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
 
     private void readFromClient() {
         while (!cancelled) {
