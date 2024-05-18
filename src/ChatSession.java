@@ -4,31 +4,26 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 
 /**
  * Thread runs for as long as the chat session is active.
  * Main purpose - read messages sent from client, delegate these to the Backend object
  */
-public class Session implements Runnable {
+public class ChatSession implements Runnable {
 
     private final Socket socket;
     private final ChatBackend chatBackend;
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
     private boolean cancelled;
-
-    private final String signatureAlgorithm;
-    private final int keySize;
+    private Cryptographer cryptographer;
 
 
-    public Session(Socket socket, ChatBackend chatBackend, String signatureAlgorithm, int keySize) {
+    public ChatSession(Socket socket, ChatBackend chatBackend) {
         this.socket = socket;
         this.chatBackend = chatBackend;
         this.cancelled = false;
-        this.signatureAlgorithm = signatureAlgorithm;
-        this.keySize = keySize;
+
 
         try {
             socket.setSoTimeout(3000);
@@ -44,11 +39,12 @@ public class Session implements Runnable {
             this.ois = ois;
             this.oos = oos;
 
-            initiateKeys();
+            cryptographer = new Cryptographer();
+            cryptographer.exchangeKeys(ois, oos);
 
             readFromClient();
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             // ignore
         } finally {
             cancelled = true;
@@ -59,26 +55,6 @@ public class Session implements Runnable {
             }
         }
     }
-
-    private void initiateKeys() {
-
-    }
-
-
-    /**
-     * Generates a public/private key pair using the DSA algorithm with 1024 byte keys
-     * @return the KeyPair
-     */
-    private KeyPair getKeyPair() {
-        try {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance(signatureAlgorithm);
-            keyGen.initialize(keySize);
-            return keyGen.generateKeyPair();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
 
 
     private void readFromClient() {

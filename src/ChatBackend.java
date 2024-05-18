@@ -15,7 +15,7 @@ public class ChatBackend {
 
     private final ChatController chatController;
     private Server server;
-    private Session ongoingSession;
+    private ChatSession ongoingChatSession;
     private OutgoingConnection outgoingConnection;  // field so accessible if needs to be cancelled
 
     public ChatBackend(ChatController chatController) {
@@ -61,7 +61,7 @@ public class ChatBackend {
      */
     public void tryIncomingConnection(Socket socket) {
 
-        if (ongoingSession != null) {
+        if (ongoingChatSession != null) {
             sendDecline(socket);
             logMessage("request from ... rejected: ongoing session");
             return;
@@ -84,7 +84,7 @@ public class ChatBackend {
         try {
             if (confirm.get()) {
                 sendAccept(socket);
-                ongoingSession = new Session(socket, this, SIGNATURE_ALGORITHM, KEY_SIZE);
+                ongoingChatSession = new ChatSession(socket, this);
                 logMessage("connection with ... established");
                 Platform.runLater(chatController::outgoingConnectionEstablished);
             } else {
@@ -106,7 +106,7 @@ public class ChatBackend {
      * @param address
      */
     public void initializeOutgoingConnection(String address) {
-        if (ongoingSession != null) {
+        if (ongoingChatSession != null) {
             throw new RuntimeException("Session already ongoing. Send button should be inactivated.");
         }
 
@@ -118,7 +118,7 @@ public class ChatBackend {
     }
 
     public void receiveSocket(Socket socket) {
-        ongoingSession = new Session(socket, this, SIGNATURE_ALGORITHM, KEY_SIZE);
+        ongoingChatSession = new ChatSession(socket, this);
         logMessage("outgoing connection established with ...");
         Platform.runLater(chatController::outgoingConnectionEstablished);
     }
@@ -148,8 +148,8 @@ public class ChatBackend {
     }
 
     public void stopCurrentSession() {
-        ongoingSession.cancel();
-        ongoingSession = null;
+        ongoingChatSession.cancel();
+        ongoingChatSession = null;
     }
 
     // other methods
