@@ -1,3 +1,4 @@
+import javax.crypto.SealedObject;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -41,6 +42,7 @@ public class ChatSession implements Runnable {
 
             cryptographer = new Cryptographer();
             cryptographer.exchangeKeys(ois, oos);
+            chatBackend.receiveKeys(cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
 
             readFromClient();
 
@@ -57,7 +59,7 @@ public class ChatSession implements Runnable {
     }
 
 
-    private void readFromClient() {
+    private void readFromClient() throws Exception {
         while (!cancelled) {
             try {
                 Command command = (Command) ois.readObject();
@@ -67,6 +69,8 @@ public class ChatSession implements Runnable {
                     break;
                 } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
+                    String message = cryptographer.decryptMessage((SealedObject) ois.readObject());
+                    chatBackend.receiveMessage(message);
                 } else {
                     // bad grammar
                     break;
@@ -88,12 +92,38 @@ public class ChatSession implements Runnable {
         }
     }
 
+    public void writeToRemoteHost(String message) {
+        WriteToRemoteHost writeTask = new WriteToRemoteHost(message);
+
+        Thread thread = new Thread(writeTask);
+        thread.setDaemon(true);
+        thread.start();
+    }
+
     public void cancel() {
         cancelled = true;
     }
 
     public boolean isCancelled() {
         return cancelled;
+    }
+
+    private class WriteToRemoteHost implements Runnable{
+        private final String message;
+
+        public WriteToRemoteHost(String message) {
+            this.message = message;
+        }
+
+        @Override
+        public void run() {
+            try {
+                oos.writeObject(cryptographer.encrypt(message));
+                oos.flush();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }
 

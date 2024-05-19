@@ -84,9 +84,11 @@ public class ChatBackend {
         try {
             if (confirm.get()) {
                 sendAccept(socket);
+
                 ongoingChatSession = new ChatSession(socket, this);
-                logMessage("connection with ... established");
-                Platform.runLater(chatController::outgoingConnectionEstablished);
+                Thread thread = new Thread(ongoingChatSession);
+                thread.setDaemon(true);
+                thread.start();
             } else {
                 sendDecline(socket);
                 logMessage("request from ... denied");
@@ -119,8 +121,9 @@ public class ChatBackend {
 
     public void receiveSocket(Socket socket) {
         ongoingChatSession = new ChatSession(socket, this);
-        logMessage("outgoing connection established with ...");
-        Platform.runLater(chatController::outgoingConnectionEstablished);
+        Thread thread = new Thread(ongoingChatSession);
+        thread.setDaemon(true);
+        thread.start();
     }
 
     public void outgoingConnectionError() {
@@ -188,5 +191,15 @@ public class ChatBackend {
 
 
     public void sendMessage(String message) {
+        ongoingChatSession.writeToRemoteHost(message);
+    }
+
+    public void receiveKeys(String ownPublicKey, String othersPublicKey) {
+        logMessage("New session started");
+        Platform.runLater(() -> chatController.outgoingConnectionEstablished(ownPublicKey, othersPublicKey));
+    }
+
+    public void receiveMessage(String message) {
+        logMessage(message);
     }
 }

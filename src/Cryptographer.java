@@ -1,5 +1,6 @@
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
+import javax.crypto.SealedObject;
 import javax.crypto.SecretKey;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -72,12 +73,28 @@ public class Cryptographer {
         othersPublicKey = (PublicKey) ois.readObject();
 
         // encrypt own secret key using remote host's public key
-
+        SealedObject ownEncryptedKey = encrypt(ownSecretKey);
 
         // send encrypted key to remote host
+        oos.writeObject(ownEncryptedKey);
+        oos.flush();
 
+        // get remote host's encrypted secret key
+        SealedObject othersEncryptedKey = (SealedObject) ois.readObject();
 
+        // decrypt remote host's encrypted secret key with own private key
+        othersSecretKey = decryptKey(othersEncryptedKey);
     }
+
+    public String getOwnPublicKey() {
+        return writeBytesInBase64(ownPublicKey);
+    }
+
+    public String getOthersPublicKey() {
+        return writeBytesInBase64(othersPublicKey);
+    }
+
+    // helper methods for symmetric cryptography //
 
     /**
      * Instantiates a secret key of the given algorithm and key size.
@@ -91,52 +108,42 @@ public class Cryptographer {
             return keyGenerator.generateKey();
         } catch (Exception e) {
             System.err.println(e.getMessage());
-            throw new Exception("Could not generate a key");
+            throw new Exception("Something went wrong while generating the secret key");
         }
     }
 
     /**
-     * Encodes the passed byte array using Base64 MIME encoding.
-     * @param data the data (encrypted or unencrypted) to write
-     * @return the Base64 representation as a String
-     */
-    private String writeBytesInBase64(byte[] data) {
-        var encoder = Base64.getMimeEncoder();
-        return encoder.encodeToString(data);
-    }
-
-    /**
      *
-     * @param cleartext a byte array of the unencrypted data
-     * @return a byte array of the encrypted data
+     * @param message the unencrypted String
+     * @return the encrypted String
      * @throws Exception if the encryption failed for any reason
      */
-    private byte[] encrypt(byte[] cleartext) throws Exception {
+    public SealedObject encrypt(String message) throws Exception {
         try {
             Cipher cipher = Cipher.getInstance(transformationSym);
             cipher.init(Cipher.ENCRYPT_MODE, ownSecretKey);
-            return cipher.doFinal(cleartext);
+            return new SealedObject(message, cipher);
         } catch (Exception e) {
-            throw new Exception("Something went wrong during the encryption process");
+            throw new Exception("Something went wrong during the encryption of a message");
         }
     }
 
     /**
      *
-     * @param ciphertext a byte array of the encrypted data
-     * @return a byte array of the decrypted data
+     * @param sealedObject the encrypted String object
+     * @return the decrypted String
      * @throws Exception if the decryption failed for any reason
      */
-    private byte[] decrypt(byte[] ciphertext) throws Exception {
+    public String decryptMessage(SealedObject sealedObject) throws Exception {
         try {
-            Cipher cipher = Cipher.getInstance(transformationSym);
-            cipher.init(Cipher.DECRYPT_MODE, othersSecretKey);
-            return cipher.doFinal(ciphertext);
+            return (String) sealedObject.getObject(othersSecretKey);
         } catch (Exception e) {
-            throw new Exception("Something went wrong during the decryption process");
+            throw new Exception("Something went wrong during the decryption of a message");
         }
     }
 
+
+    // helper methods for asymmetric cryptography //
 
     /**
      * Generates a public/private key pair using the given algorithm and key size
@@ -154,4 +161,34 @@ public class Cryptographer {
         }
     }
 
+    private SealedObject encrypt(SecretKey secretKey) throws Exception {
+        try {
+            Cipher cipher = Cipher.getInstance(transformationAsym);
+            cipher.init(Cipher.ENCRYPT_MODE, othersPublicKey);
+            return new SealedObject(secretKey, cipher);
+        } catch (Exception e) {
+            throw new Exception("Something went wrong when encrypting your secret key");
+        }
+    }
+
+    private SecretKey decryptKey(SealedObject sealedObject) throws Exception {
+        try {
+            return (SecretKey) sealedObject.getObject(ownPrivateKey);
+        } catch (Exception e) {
+            throw new Exception("Something went wrong when decrypting your friend's secret key");
+        }
+    }
+
+
+    // other helper methods //
+
+    /**
+     * Encodes the passed public key using Base64 MIME encoding.
+     * @param publicKey the public key to write
+     * @return the Base64 representation as a String
+     */
+    private String writeBytesInBase64(PublicKey publicKey) {
+        var encoder = Base64.getMimeEncoder();
+        return encoder.encodeToString(publicKey.getEncoded());
+    }
 }

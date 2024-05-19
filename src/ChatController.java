@@ -94,11 +94,15 @@ public class ChatController {
 
     private void stopHandler() {
         chatBackend.stopCurrentSession();
+        ownKeyField.clear();
+        contactPublicKey.clear();
         buttonState.set(ButtonState.START);
     }
 
     // called with Platform.runLater
-    public void outgoingConnectionEstablished() {
+    public void outgoingConnectionEstablished(String ownPublicKey, String othersPublicKey) {
+        ownKeyField.setText(ownPublicKey);
+        contactPublicKey.setText(othersPublicKey);
         buttonState.set(ButtonState.STOP);
     }
 
@@ -114,7 +118,9 @@ public class ChatController {
             return;
         }
 
+        chatInputField.clear();
         chatBackend.sendMessage(message);
+        appendToChat(message);
     }
 
 
