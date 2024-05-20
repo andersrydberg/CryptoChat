@@ -29,10 +29,10 @@ public class ChatSession implements Runnable {
     public void run() {
         System.err.println(Thread.currentThread().getName() + " ChatSession.run 1");
 
-        try (ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-        ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
-            this.ois = ois;
+        try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+        ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
             this.oos = oos;
+            this.ois = ois;
 
             System.err.println(Thread.currentThread().getName() + " ChatSession.run 2");
 
