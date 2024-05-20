@@ -17,7 +17,7 @@ public class ChatController {
 
     private final ChatBackend chatBackend = new ChatBackend(this);
 
-    private final SimpleObjectProperty<ButtonState> buttonState = new SimpleObjectProperty<>(ButtonState.START);
+    private final SimpleObjectProperty<ConnectionState> connectionState = new SimpleObjectProperty<>(ConnectionState.INACTIVE);
 
 
     @FXML
@@ -44,19 +44,28 @@ public class ChatController {
      */
     @FXML
     private void initialize() {
-        buttonState.addListener((observableValue, oldValue, newValue) -> {
+        connectionState.addListener((observableValue, oldValue, newValue) -> {
             switch (newValue) {
-                case START -> {
-                    chatInputField.setDisable(true);
-                    ipField.setEditable(true);
+                case INACTIVE -> {
+                    ipField.setDisable(false);
+                    mainButton.setDisable(false);
                     mainButton.setText("Start session");
+                    chatInputField.setDisable(true);
                 }
-                case CANCEL -> {
-                    ipField.setEditable(false);
+                case CONNECTING -> {
+                    ipField.setDisable(true);
+                    mainButton.setDisable(false);
                     mainButton.setText("Cancel");
+                    chatInputField.setDisable(true);
                 }
-                case STOP -> {
-                    ipField.setEditable(false);
+                case CANCELLING_CONNECTION, CLOSING_SESSION -> {
+                    ipField.setDisable(true);
+                    mainButton.setDisable(true);
+                    chatInputField.setDisable(true);
+                }
+                case ACTIVE_SESSION -> {
+                    ipField.setDisable(true);
+                    mainButton.setDisable(false);
                     mainButton.setText("Stop session");
                     chatInputField.setDisable(false);
                 }
@@ -75,40 +84,49 @@ public class ChatController {
      * Called when user presses the Start/Cancel/Stop button.
      */
     public void buttonHandler(ActionEvent event) {
-        switch (buttonState.get()) {
-            case START -> startHandler();
-            case CANCEL -> cancelHandler();
-            case STOP -> stopHandler();
+        switch (connectionState.get()) {
+            case INACTIVE -> startHandler();
+            case CONNECTING -> cancelHandler();
+            case ACTIVE_SESSION -> stopHandler();
         }
     }
 
     private void startHandler() {
-        buttonState.set(ButtonState.CANCEL);
+        connectionState.set(ConnectionState.CONNECTING);
         chatBackend.initializeOutgoingConnection(ipField.getText().trim());
     }
 
     private void cancelHandler() {
+        connectionState.set(ConnectionState.CANCELLING_CONNECTION);
         chatBackend.cancelOutgoingConnection();
-        buttonState.set(ButtonState.START);
+        connectionState.set(ConnectionState.INACTIVE);
     }
 
     private void stopHandler() {
+        connectionState.set(ConnectionState.CLOSING_SESSION);
         chatBackend.stopCurrentSession();
+
         ownKeyField.clear();
+        ownKeyField.setDisable(true);
         contactPublicKey.clear();
-        buttonState.set(ButtonState.START);
+        contactPublicKey.setDisable(true);
+
+        connectionState.set(ConnectionState.INACTIVE);
     }
 
     // called with Platform.runLater
     public void outgoingConnectionEstablished(String ownPublicKey, String othersPublicKey) {
         ownKeyField.setText(ownPublicKey);
+        ownKeyField.setDisable(false);
         contactPublicKey.setText(othersPublicKey);
-        buttonState.set(ButtonState.STOP);
+        contactPublicKey.setDisable(false);
+
+        connectionState.set(ConnectionState.ACTIVE_SESSION);
     }
 
     // called with Platform.runLater
     public void outgoingConnectionFailed() {
-        buttonState.set(ButtonState.START);
+        connectionState.set(ConnectionState.INACTIVE);
     }
 
     public void sendMessageHandler(ActionEvent event) {

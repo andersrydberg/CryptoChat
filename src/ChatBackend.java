@@ -8,11 +8,7 @@ import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 public class ChatBackend {
-    private final int DEFAULT_PORT = 27119;
-    private final String SIGNATURE_ALGORITHM = "DSA";
-    private final String MESSAGE_DIGEST_ALGORITHM = "SHA-256";
-    private final int KEY_SIZE = 1024;
-
+    private static final int DEFAULT_PORT = 27119;
     private final ChatController chatController;
     private Server server;
     private ChatSession ongoingChatSession;
@@ -31,6 +27,7 @@ public class ChatBackend {
 
         Thread thread = new Thread(server);
         thread.setDaemon(true);
+        thread.setName("Server Thread");
         thread.start();
     }
 
@@ -60,6 +57,7 @@ public class ChatBackend {
      * @param socket
      */
     public void tryIncomingConnection(Socket socket) {
+        System.err.println(Thread.currentThread().getName() + " tryIncomingConnection 1");
 
         if (ongoingChatSession != null) {
             sendDecline(socket);
@@ -68,7 +66,11 @@ public class ChatBackend {
         }
 
         // prompt user...
-        final String inetAddress = socket.getInetAddress().toString();
+        final String inetAddress =
+                socket.getInetAddress().toString()
+                + " on port " + socket.getPort()
+                + " (local port is "
+                + socket.getLocalPort() + ")";
         var confirm = new Task<Boolean>() {
             @Override
             protected Boolean call() {
@@ -81,6 +83,8 @@ public class ChatBackend {
 
         Platform.runLater(confirm);
 
+        System.err.println(Thread.currentThread().getName() + " tryIncomingConnection 2");
+
         try {
             if (confirm.get()) {
                 sendAccept(socket);
@@ -88,6 +92,7 @@ public class ChatBackend {
                 ongoingChatSession = new ChatSession(socket, this);
                 Thread thread = new Thread(ongoingChatSession);
                 thread.setDaemon(true);
+                thread.setName("Chat Session From Incoming Thread");
                 thread.start();
             } else {
                 sendDecline(socket);
@@ -108,30 +113,42 @@ public class ChatBackend {
      * @param address
      */
     public void initializeOutgoingConnection(String address) {
+        System.err.println(Thread.currentThread().getName() + " initializeOutgoingConnection");
+
         if (ongoingChatSession != null) {
-            throw new RuntimeException("Session already ongoing. Send button should be inactivated.");
+            throw new RuntimeException("Session already ongoing. Start button should be inactivated.");
         }
 
         outgoingConnection = new OutgoingConnection(this, address, DEFAULT_PORT);
 
         Thread thread = new Thread(outgoingConnection);
         thread.setDaemon(true);
+        thread.setName("Outgoing Connection Thread");
         thread.start();
     }
 
     public void receiveSocket(Socket socket) {
+        System.err.println(Thread.currentThread().getName() + " receiveSocket");
+
         ongoingChatSession = new ChatSession(socket, this);
         Thread thread = new Thread(ongoingChatSession);
         thread.setDaemon(true);
+        thread.setName("Chat Session From Client Thread");
         thread.start();
     }
 
     public void outgoingConnectionError() {
+        System.err.println(Thread.currentThread().getName() + " outgoingConnectionError");
+
+        outgoingConnection = null;
         logMessage("could not establish an outgoing connection with ...");
         Platform.runLater(chatController::outgoingConnectionFailed);
     }
 
     public void outgoingConnectionRefused() {
+        System.err.println(Thread.currentThread().getName() + " outgoingConnectionRefused");
+
+        outgoingConnection = null;
         logMessage("remote host rejected connection");
         Platform.runLater(chatController::outgoingConnectionFailed);
     }
@@ -146,12 +163,21 @@ public class ChatBackend {
     }
 
     public void cancelOutgoingConnection() {
-        outgoingConnection.cancel();
+        System.err.println(Thread.currentThread().getName() + " cancelOutgoingConnection");
+
+
+        if (outgoingConnection != null) {
+            outgoingConnection.cancel();
+        }
         outgoingConnection = null;
     }
 
     public void stopCurrentSession() {
-        ongoingChatSession.cancel();
+        System.err.println(Thread.currentThread().getName() + " stopCurrentSession");
+
+        if (ongoingChatSession != null) {
+            ongoingChatSession.cancel();
+        }
         ongoingChatSession = null;
     }
 
@@ -166,9 +192,11 @@ public class ChatBackend {
             @Override
             public void run() {
                 try {
+                    System.err.println(Thread.currentThread().getName() + " sendCommand 1");
                     ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
                     oos.writeObject(command);
                     oos.flush();
+                    System.err.println(Thread.currentThread().getName() + " sendCommand 2");
                 } catch (IOException e) {
                     closeSocket(socket);
                 }
@@ -177,15 +205,20 @@ public class ChatBackend {
 
         Thread thread = new Thread(sendTask);
         thread.setDaemon(true);
+        thread.setName("Send Command Thread");
         thread.start();
     }
 
     private void sendDecline(Socket socket) {
+        System.err.println(Thread.currentThread().getName() + " sendDecline");
+
         sendCommand(socket, Command.DECLINED);
         closeSocket(socket);
     }
 
     private void sendAccept(Socket socket) {
+        System.err.println(Thread.currentThread().getName() + " sendAccept");
+
         sendCommand(socket, Command.ACCEPTED);
     }
 

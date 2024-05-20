@@ -57,6 +57,8 @@ public class Cryptographer {
     }
 
     public void exchangeKeys(ObjectInputStream ois, ObjectOutputStream oos) throws Exception {
+        System.err.println(Thread.currentThread().getName() + " Cryptographer.exchangeKeys");
+
         // generate a secret key for symmetric encryption and decryption of messages
         ownSecretKey = getSecretKey();
 

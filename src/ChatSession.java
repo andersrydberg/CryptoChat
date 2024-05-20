@@ -3,7 +3,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
 /**
@@ -24,32 +23,31 @@ public class ChatSession implements Runnable {
         this.socket = socket;
         this.chatBackend = chatBackend;
         this.cancelled = false;
-
-
-        try {
-            socket.setSoTimeout(3000);
-        } catch (SocketException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override
     public void run() {
+        System.err.println(Thread.currentThread().getName() + " ChatSession.run 1");
+
         try (ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
         ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream())) {
             this.ois = ois;
             this.oos = oos;
 
+            System.err.println(Thread.currentThread().getName() + " ChatSession.run 2");
+
             cryptographer = new Cryptographer();
             cryptographer.exchangeKeys(ois, oos);
             chatBackend.receiveKeys(cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
+
+            socket.setSoTimeout(1000);
 
             readFromClient();
 
         } catch (Exception e) {
             // ignore
         } finally {
-            cancelled = true;
+            chatBackend.stopCurrentSession();
             try {
                 socket.close();
             } catch (IOException e) {
@@ -60,6 +58,8 @@ public class ChatSession implements Runnable {
 
 
     private void readFromClient() throws Exception {
+        System.err.println(Thread.currentThread().getName() + " ChatSession.readFromClient");
+
         while (!cancelled) {
             try {
                 Command command = (Command) ois.readObject();
@@ -102,10 +102,6 @@ public class ChatSession implements Runnable {
 
     public void cancel() {
         cancelled = true;
-    }
-
-    public boolean isCancelled() {
-        return cancelled;
     }
 
     private class WriteToRemoteHost implements Runnable{
