@@ -58,7 +58,7 @@ public class ChatController {
                     mainButton.setText("Cancel");
                     chatInputField.setDisable(true);
                 }
-                case CANCELLING_CONNECTION, CLOSING_SESSION -> {
+                case CANCELLING_OUTGOING_CONNECTION, ENDING_SESSION -> {
                     ipField.setDisable(true);
                     mainButton.setDisable(true);
                     chatInputField.setDisable(true);
@@ -93,18 +93,18 @@ public class ChatController {
 
     private void startHandler() {
         connectionState.set(ConnectionState.CONNECTING);
-        chatBackend.initializeOutgoingConnection(ipField.getText().trim());
+        chatBackend.connectTo(ipField.getText().trim());
     }
 
     private void cancelHandler() {
-        connectionState.set(ConnectionState.CANCELLING_CONNECTION);
+        connectionState.set(ConnectionState.CANCELLING_OUTGOING_CONNECTION);
         chatBackend.cancelOutgoingConnection();
         connectionState.set(ConnectionState.INACTIVE);
     }
 
     private void stopHandler() {
-        connectionState.set(ConnectionState.CLOSING_SESSION);
-        chatBackend.stopCurrentSession();
+        connectionState.set(ConnectionState.ENDING_SESSION);
+        chatBackend.stopActiveSession();
 
         ownKeyField.clear();
         ownKeyField.setDisable(true);
@@ -113,6 +113,9 @@ public class ChatController {
 
         connectionState.set(ConnectionState.INACTIVE);
     }
+
+    // callback methods (from chatBackend)
+
 
     // called with Platform.runLater
     public void sessionStarted(String ownPublicKey, String othersPublicKey) {

@@ -3,7 +3,6 @@ import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 
-import java.io.IOException;
 import java.net.Socket;
 
 public class ChatBackend {
@@ -47,66 +46,6 @@ public class ChatBackend {
         startServer();
     }
 
-    /*
-
-    *//**
-     * Called when there is an incoming connection from a remote host
-     * check if there is an ongoing session, else prompt user
-     * Main flow of execution runs in the Server thread, so should
-     * probably be placed in that class
-     *
-     * @param socket
-     *//*
-    public void tryIncomingConnection(Socket socket) {
-        System.err.println(Thread.currentThread().getName() + " tryIncomingConnection 1");
-
-        if (ongoingChatSession != null) {
-            sendDecline(socket);
-            logMessage("request from ... rejected: ongoing session");
-            return;
-        }
-
-        // prompt user...
-        final String inetAddress =
-                socket.getInetAddress().toString()
-                + " on port " + socket.getPort()
-                + " (local port is "
-                + socket.getLocalPort() + ")";
-        var confirm = new Task<Boolean>() {
-            @Override
-            protected Boolean call() {
-                var result = new Alert(Alert.AlertType.CONFIRMATION,
-                        String.format("Accept connection from %s?", inetAddress))
-                        .showAndWait();
-                return (result.isPresent() && result.get() == ButtonType.OK);
-            }
-        };
-
-        Platform.runLater(confirm);
-
-        System.err.println(Thread.currentThread().getName() + " tryIncomingConnection 2");
-
-        try {
-            if (confirm.get()) {
-                sendAccept(socket);
-
-                ongoingChatSession = new ChatSession(socket, this);
-                Thread thread = new Thread(ongoingChatSession);
-                thread.setDaemon(true);
-                thread.setName("Chat Session From Incoming Thread");
-                thread.start();
-            } else {
-                sendDecline(socket);
-                logMessage("request from ... denied");
-                Platform.runLater(chatController::outgoingConnectionFailed);
-            }
-        } catch (Exception e) {
-            closeSocket(socket);
-            logMessage("could not establish connection to ...");
-        }
-    }
-
-    */
 
     // methods for reacting to user input and events triggered subsequently
 
@@ -114,7 +53,7 @@ public class ChatBackend {
      * Called when the user initiates a connection to a remote host
      * @param address
      */
-    public void initializeOutgoingConnection(String address) {
+    public void connectTo(String address) {
         System.err.println(Thread.currentThread().getName() + " initializeOutgoingConnection");
 
         if (outgoingConnection != null || activeChatSession != null) {
@@ -160,15 +99,6 @@ public class ChatBackend {
         Platform.runLater(() -> chatController.sessionStarted(ownPublicKey, othersPublicKey));
     }
 
-
-    private void closeSocket(Socket socket) {
-        try {
-            socket.close();
-        } catch (IOException e) {
-            // ignore
-        }
-    }
-
     public void cancelOutgoingConnection() {
         System.err.println(Thread.currentThread().getName() + " cancelOutgoingConnection");
 
@@ -182,7 +112,7 @@ public class ChatBackend {
         }
     }
 
-    public void stopCurrentSession() {
+    public void stopActiveSession() {
         System.err.println(Thread.currentThread().getName() + " stopCurrentSession");
 
         if (activeChatSession != null) {
@@ -191,6 +121,8 @@ public class ChatBackend {
         }
     }
 
+    public void sessionEnding() {
+    }
 
     // other methods
 

@@ -18,6 +18,7 @@ public class ChatSession implements Runnable {
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
     private Cryptographer cryptographer;
+    private final Object lock = new Object();
 
 
     /**
@@ -92,7 +93,8 @@ public class ChatSession implements Runnable {
         } catch (Exception e) {
             // ignore
         } finally {
-            chatBackend.stopCurrentSession(); // check this
+            chatBackend.stopActiveSession(); // check this
+            chatBackend.sessionEnding();
             try {
                 socket.close();
             } catch (IOException e) {
@@ -146,6 +148,13 @@ public class ChatSession implements Runnable {
     }
 
     public void cancel() {
+        synchronized (lock) {
+            try {
+                oos.writeObject(Command.DECLINED);
+            } catch (IOException e) {
+                // ignore
+            }
+        }
         cancelled = true;
     }
 
@@ -159,8 +168,11 @@ public class ChatSession implements Runnable {
         @Override
         public void run() {
             try {
-                oos.writeObject(cryptographer.encrypt(message));
-                oos.flush();
+                synchronized (lock) {
+                    oos.writeObject(Command.MESSAGE);
+                    oos.writeObject(cryptographer.encrypt(message));
+                    oos.flush();
+                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
