@@ -13,41 +13,86 @@ public class ChatSession implements Runnable {
 
     private final Socket socket;
     private final ChatBackend chatBackend;
+    private final Command response;
+    private boolean cancelled;
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
-    private boolean cancelled;
     private Cryptographer cryptographer;
 
 
+    /**
+     * Called when localhost initiates an outgoing connection (i.e. acts as client)
+     * @param chatBackend
+     */
     public ChatSession(Socket socket, ChatBackend chatBackend) {
         this.socket = socket;
         this.chatBackend = chatBackend;
+        this.response = null;
+        this.cancelled = false;
+    }
+
+    /**
+     * Called when localhost receives an incoming connection (i.e. acts as server)
+     * @param socket
+     * @param chatBackend
+     * @param response
+     */
+    public ChatSession(Socket socket, ChatBackend chatBackend, Command response) {
+        if (!response.equals(Command.ACCEPTED) && !response.equals(Command.DECLINED)) {
+            throw new RuntimeException("ChatSession constructed with bad arguments");
+        }
+
+        this.socket = socket;
+        this.chatBackend = chatBackend;
+        this.response = response;
         this.cancelled = false;
     }
 
     @Override
     public void run() {
-        System.err.println(Thread.currentThread().getName() + " ChatSession.run 1");
-
         try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-        ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
+             ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
             this.oos = oos;
             this.ois = ois;
 
-            System.err.println(Thread.currentThread().getName() + " ChatSession.run 2");
+            socket.setSoTimeout(1000);
+
+            if (response == null) {
+                while (!cancelled) {
+                    try {
+                        Command responseFromRemoteHost = (Command) ois.readObject();
+                        if (responseFromRemoteHost.equals(Command.DECLINED)) {
+                            chatBackend.outgoingConnectionRefused();
+                            return;
+                        }
+                        break;
+                    } catch (SocketTimeoutException e) {
+                        // continue
+                    }
+                }
+                if (cancelled) return;
+            } else {
+                oos.writeObject(response);
+                oos.flush();
+
+                if (response.equals(Command.DECLINED)) {
+                    return;
+                }
+            }
 
             cryptographer = new Cryptographer();
             cryptographer.exchangeKeys(ois, oos);
-            chatBackend.receiveKeys(cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
 
-            socket.setSoTimeout(1000);
+            chatBackend.sessionStarted(this, cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
+            //chatBackend.receiveKeys(cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
+
 
             readFromClient();
 
         } catch (Exception e) {
             // ignore
         } finally {
-            chatBackend.stopCurrentSession();
+            chatBackend.stopCurrentSession(); // check this
             try {
                 socket.close();
             } catch (IOException e) {

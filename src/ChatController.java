@@ -115,7 +115,7 @@ public class ChatController {
     }
 
     // called with Platform.runLater
-    public void outgoingConnectionEstablished(String ownPublicKey, String othersPublicKey) {
+    public void sessionStarted(String ownPublicKey, String othersPublicKey) {
         ownKeyField.setText(ownPublicKey);
         ownKeyField.setDisable(false);
         contactPublicKey.setText(othersPublicKey);
@@ -128,6 +128,8 @@ public class ChatController {
     public void outgoingConnectionFailed() {
         connectionState.set(ConnectionState.INACTIVE);
     }
+
+
 
     public void sendMessageHandler(ActionEvent event) {
         String message = chatInputField.getText().trim();
