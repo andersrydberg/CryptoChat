@@ -70,6 +70,7 @@ public class OutgoingConnection implements Runnable {
                     // bad grammar
                     break;
                 } catch (Exception e) {
+                    System.err.println(e.getClass().toString() + ": " + e.getMessage());
                     chatBackend.outgoingConnectionError();
                     break;
                 }
