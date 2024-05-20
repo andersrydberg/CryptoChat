@@ -1,6 +1,7 @@
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -49,6 +50,7 @@ public class OutgoingConnection implements Runnable {
 
             System.err.println(Thread.currentThread().getName() + " OutgoingConnection.run 3");
 
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
             ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
 
             System.err.println(Thread.currentThread().getName() + " OutgoingConnection.run 4");
