@@ -130,45 +130,6 @@ public class ChatBackend {
         Platform.runLater(() -> chatController.appendToChat(message));
     }
 
-/*
-
-    private void sendCommand(Socket socket, Command command) {
-        var sendTask = new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    System.err.println(Thread.currentThread().getName() + " sendCommand 1");
-                    ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-                    oos.writeObject(command);
-                    oos.flush();
-                    System.err.println(Thread.currentThread().getName() + " sendCommand 2");
-                } catch (IOException e) {
-                    closeSocket(socket);
-                }
-            }
-        };
-
-        Thread thread = new Thread(sendTask);
-        thread.setDaemon(true);
-        thread.setName("Send Command Thread");
-        thread.start();
-    }
-
-    private void sendDecline(Socket socket) {
-        System.err.println(Thread.currentThread().getName() + " sendDecline");
-
-        sendCommand(socket, Command.DECLINED);
-        closeSocket(socket);
-    }
-
-    private void sendAccept(Socket socket) {
-        System.err.println(Thread.currentThread().getName() + " sendAccept");
-
-        sendCommand(socket, Command.ACCEPTED);
-    }
-
-*/
-
     public void sendMessage(String message) {
         activeChatSession.writeToRemoteHost(message);
     }

@@ -62,10 +62,15 @@ public class Cryptographer {
         // generate a secret key for symmetric encryption and decryption of messages
         ownSecretKey = getSecretKey();
 
+        System.err.println("own secret key: " + writeBytesInBase64(ownSecretKey.getEncoded()).substring(0, 20));
+
         // generate a key pair for asymmetric cryptography (used for the exchange of secret keys)
         KeyPair keyPair = getKeyPair();
         ownPrivateKey = keyPair.getPrivate();
         ownPublicKey = keyPair.getPublic();
+
+        System.err.println("own private key: " + writeBytesInBase64(ownPrivateKey.getEncoded()).substring(0, 20));
+        System.err.println("own public key: " + writeBytesInBase64(ownPublicKey.getEncoded()).substring(0, 20));
 
         // send public key to remote host (with which remote host will encrypt his secret key)
         oos.writeObject(ownPublicKey);
@@ -73,6 +78,8 @@ public class Cryptographer {
 
         // get remote host's public key
         othersPublicKey = (PublicKey) ois.readObject();
+
+        System.err.println("other's public key: " + writeBytesInBase64(othersPublicKey.getEncoded()).substring(0, 20));
 
         // encrypt own secret key using remote host's public key
         SealedObject ownEncryptedKey = encrypt(ownSecretKey);
@@ -86,14 +93,17 @@ public class Cryptographer {
 
         // decrypt remote host's encrypted secret key with own private key
         othersSecretKey = decryptKey(othersEncryptedKey);
+
+        System.err.println("other's secret key: " + writeBytesInBase64(othersSecretKey.getEncoded()).substring(0, 20));
+
     }
 
     public String getOwnPublicKey() {
-        return writeBytesInBase64(ownPublicKey);
+        return writeBytesInBase64(ownPublicKey.getEncoded());
     }
 
     public String getOthersPublicKey() {
-        return writeBytesInBase64(othersPublicKey);
+        return writeBytesInBase64(othersPublicKey.getEncoded());
     }
 
     // helper methods for symmetric cryptography //
@@ -186,11 +196,11 @@ public class Cryptographer {
 
     /**
      * Encodes the passed public key using Base64 MIME encoding.
-     * @param publicKey the public key to write
+     * @param data the data to encode
      * @return the Base64 representation as a String
      */
-    private String writeBytesInBase64(PublicKey publicKey) {
+    private String writeBytesInBase64(byte[] data) {
         var encoder = Base64.getMimeEncoder();
-        return encoder.encodeToString(publicKey.getEncoded());
+        return encoder.encodeToString(data);
     }
 }
