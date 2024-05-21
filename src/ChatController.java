@@ -31,7 +31,7 @@ public class ChatController {
     @FXML
     private TextField ownKeyField;
     @FXML
-    private TextField contactPublicKey;
+    private TextField othersKeyField;
     @FXML
     private TextArea chatArea;
     @FXML
@@ -51,12 +51,14 @@ public class ChatController {
                     mainButton.setDisable(false);
                     mainButton.setText("Start session");
                     chatInputField.setDisable(true);
+                    publicKeyBox.setDisable(true);
                 }
                 case CONNECTING -> {
                     ipField.setDisable(true);
                     mainButton.setDisable(false);
                     mainButton.setText("Cancel");
                     chatInputField.setDisable(true);
+                    publicKeyBox.setDisable(true);
                 }
                 case CANCELLING_OUTGOING_CONNECTION, ENDING_SESSION -> {
                     ipField.setDisable(true);
@@ -68,6 +70,7 @@ public class ChatController {
                     mainButton.setDisable(false);
                     mainButton.setText("Stop session");
                     chatInputField.setDisable(false);
+                    publicKeyBox.setDisable(false);
                 }
             }
         });
@@ -108,8 +111,8 @@ public class ChatController {
 
         ownKeyField.clear();
         ownKeyField.setDisable(true);
-        contactPublicKey.clear();
-        contactPublicKey.setDisable(true);
+        othersKeyField.clear();
+        othersKeyField.setDisable(true);
 
         connectionState.set(ConnectionState.INACTIVE);
     }
@@ -121,8 +124,8 @@ public class ChatController {
     public void sessionStarted(String ownPublicKey, String othersPublicKey) {
         ownKeyField.setText(ownPublicKey);
         ownKeyField.setDisable(false);
-        contactPublicKey.setText(othersPublicKey);
-        contactPublicKey.setDisable(false);
+        othersKeyField.setText(othersPublicKey);
+        othersKeyField.setDisable(false);
 
         connectionState.set(ConnectionState.ACTIVE_SESSION);
     }
