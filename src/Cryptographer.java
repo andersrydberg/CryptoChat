@@ -5,7 +5,6 @@ import javax.crypto.SecretKey;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.security.*;
-import java.util.Arrays;
 import java.util.Base64;
 
 public class Cryptographer {
@@ -16,6 +15,7 @@ public class Cryptographer {
     private static final String DEFAULT_KEY_PAIR_GENERATOR_ALGORITHM = "RSA";
     private static final String DEFAULT_TRANSFORMATION_ASYMMETRIC = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
     private static final int DEFAULT_KEY_SIZE_ASYMMETRIC = 2048;
+    private static final String DEFAULT_SIGNING_ALGORITHM = "SHA256withRSA";
 
 
 
@@ -112,8 +112,16 @@ public class Cryptographer {
         return writeBytesInBase64(digest(othersPublicKey.getEncoded()));
     }
 
-    // helper methods for symmetric cryptography //
+    public SignedObject cipher(String message) throws Exception {
+        return sign(encrypt(message));
+    }
 
+    public String decipher(SignedObject signedObject) throws Exception {
+        return decryptMessage(verify(signedObject));
+    }
+
+
+    // helper methods for symmetric cryptography //
     /**
      * Instantiates a secret key of the given algorithm and key size.
      * @return the SecretKey instance
@@ -136,7 +144,7 @@ public class Cryptographer {
      * @return the encrypted String
      * @throws Exception if the encryption failed for any reason
      */
-    public SealedObject encrypt(String message) throws Exception {
+    private SealedObject encrypt(String message) throws Exception {
         try {
             Cipher cipher = Cipher.getInstance(transformationSym);
             cipher.init(Cipher.ENCRYPT_MODE, ownSecretKey);
@@ -152,7 +160,7 @@ public class Cryptographer {
      * @return the decrypted String
      * @throws Exception if the decryption failed for any reason
      */
-    public String decryptMessage(SealedObject sealedObject) throws Exception {
+    private String decryptMessage(SealedObject sealedObject) throws Exception {
         try {
             return (String) sealedObject.getObject(othersSecretKey);
         } catch (Exception e) {
@@ -194,6 +202,27 @@ public class Cryptographer {
             return (SecretKey) sealedObject.getObject(ownPrivateKey);
         } catch (Exception e) {
             throw new Exception("Something went wrong when decrypting your friend's secret key");
+        }
+    }
+
+    private SignedObject sign(SealedObject sealedObject) throws Exception {
+        try {
+            Signature signingEngine = Signature.getInstance(DEFAULT_SIGNING_ALGORITHM);
+            return new SignedObject(sealedObject, ownPrivateKey, signingEngine);
+        } catch (Exception e) {
+            throw new Exception("Something went wrong while generating a signature");
+        }
+    }
+
+    private SealedObject verify(SignedObject signedObject) throws Exception {
+        try {
+            Signature verificationEngine = Signature.getInstance(DEFAULT_SIGNING_ALGORITHM);
+            if (signedObject.verify(othersPublicKey, verificationEngine)) {
+                return (SealedObject) signedObject.getObject();
+            }
+            throw new Exception("Could not verify signature");
+        } catch (Exception e) {
+            throw new Exception("Something went wrong when verifying a signature");
         }
     }
 

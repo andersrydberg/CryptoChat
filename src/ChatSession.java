@@ -4,6 +4,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.security.SignedObject;
 
 /**
  * Thread runs for as long as the chat session is active.
@@ -120,7 +121,7 @@ public class ChatSession implements Runnable {
                     break;
                 } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
-                    String message = cryptographer.decryptMessage((SealedObject) ois.readObject());
+                    String message = cryptographer.decipher((SignedObject) ois.readObject());
                     chatBackend.receiveMessage(message);
                 } else {
                     // bad grammar
@@ -167,7 +168,7 @@ public class ChatSession implements Runnable {
             try {
                 synchronized (lock) {
                     oos.writeObject(Command.MESSAGE);
-                    oos.writeObject(cryptographer.encrypt(message));
+                    oos.writeObject(cryptographer.cipher(message));
                     oos.flush();
                 }
             } catch (Exception e) {
