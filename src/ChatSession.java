@@ -85,15 +85,19 @@ public class ChatSession implements Runnable {
             cryptographer.exchangeKeys(ois, oos);
 
             chatBackend.sessionStarted(this, cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
-            //chatBackend.receiveKeys(cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
-
 
             readFromClient();
 
         } catch (Exception e) {
             // ignore
         } finally {
-            chatBackend.stopActiveSession(); // check this
+            synchronized (lock) {
+                try {
+                    oos.writeObject(Command.DECLINED);
+                } catch (IOException e) {
+                    // ignore
+                }
+            }
             chatBackend.sessionEnding();
             try {
                 socket.close();
@@ -148,13 +152,6 @@ public class ChatSession implements Runnable {
     }
 
     public void cancel() {
-        synchronized (lock) {
-            try {
-                oos.writeObject(Command.DECLINED);
-            } catch (IOException e) {
-                // ignore
-            }
-        }
         cancelled = true;
     }
 

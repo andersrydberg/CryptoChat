@@ -41,43 +41,6 @@ public class OutgoingConnection implements Runnable {
                     // continue
                 }
             }
-
-            /*
-
-            System.err.println(Thread.currentThread().getName() + " OutgoingConnection.run 2");
-
-            //socket.setSoTimeout(1000);
-
-            System.err.println(Thread.currentThread().getName() + " OutgoingConnection.run 3");
-
-            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
-
-            System.err.println(Thread.currentThread().getName() + " OutgoingConnection.run 4");
-
-            while (!cancelled) {
-                try {
-                    Command command = (Command) ois.readObject();
-                    if (command.equals(Command.ACCEPTED)) {
-                        chatBackend.receiveSocket(socket);
-                    } else {
-                        chatBackend.outgoingConnectionRefused();
-                    }
-                    break;
-                } catch (SocketTimeoutException e) {
-                    // continue
-                } catch (ClassCastException e) {
-                    // bad grammar
-                    break;
-                } catch (Exception e) {
-                    System.err.println(e.getClass().toString() + ": " + e.getMessage());
-                    chatBackend.outgoingConnectionError();
-                    break;
-                }
-            }
-
-             */
-
         } catch (IOException e) {
             System.err.println(e.getClass().toString() + ": " + e.getMessage());
             chatBackend.outgoingConnectionError();

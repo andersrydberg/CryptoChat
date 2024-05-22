@@ -122,6 +122,7 @@ public class ChatBackend {
     }
 
     public void sessionEnding() {
+        Platform.runLater(chatController::sessionEnded);
     }
 
     // other methods

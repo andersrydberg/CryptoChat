@@ -108,13 +108,6 @@ public class ChatController {
     private void stopHandler() {
         connectionState.set(ConnectionState.ENDING_SESSION);
         chatBackend.stopActiveSession();
-
-        ownKeyField.clear();
-        ownKeyField.setDisable(true);
-        othersKeyField.clear();
-        othersKeyField.setDisable(true);
-
-        connectionState.set(ConnectionState.INACTIVE);
     }
 
     // callback methods (from chatBackend)
@@ -123,11 +116,16 @@ public class ChatController {
     // called with Platform.runLater
     public void sessionStarted(String ownPublicKey, String othersPublicKey) {
         ownKeyField.setText(ownPublicKey);
-        ownKeyField.setDisable(false);
         othersKeyField.setText(othersPublicKey);
-        othersKeyField.setDisable(false);
 
         connectionState.set(ConnectionState.ACTIVE_SESSION);
+    }
+
+    public void sessionEnded() {
+        ownKeyField.clear();
+        othersKeyField.clear();
+
+        connectionState.set(ConnectionState.INACTIVE);
     }
 
     // called with Platform.runLater
