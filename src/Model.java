@@ -5,39 +5,58 @@ import javafx.scene.control.ButtonType;
 
 import java.net.Socket;
 
-public class ChatBackend {
+/**
+ * Manages the data and background threads of the application. Receives input from the controller
+ * (upon user interaction) as well as the background threads (e.g. in response to network events)
+ */
+public class Model {
     private static final int DEFAULT_PORT = 27119;
-    private final ChatController chatController;
+    private final Controller controller;
     private Server server;
     private OutgoingConnection outgoingConnection;
     private ChatSession activeChatSession;
 
-    public ChatBackend(ChatController chatController) {
-        this.chatController = chatController;
+    public Model(Controller controller) {
+        this.controller = controller;
     }
+
+
+
+    /*
+    // methods called at startup
+     */
 
     public void start() {
         startServer();
     }
 
+    /**
+     * Starts the server on a dedicated background thread.
+     */
     private void startServer() {
         server = new Server(this, DEFAULT_PORT);
 
         Thread thread = new Thread(server);
-        thread.setDaemon(true);
-        thread.setName("Server Thread");
         thread.start();
     }
 
 
-    // methods for reacting to server events
+    /*
+    // methods called by Server in response to server events
+     */
 
+    /**
+     * Called when server has been started successfully.
+     */
     public void serverStarted() {
-        logMessage("Server started...");
+        displayMessage("Server started. Listening on port " + DEFAULT_PORT);
     }
 
+    /**
+     * Called when there is an error upon server startup. Restarts server after 5 seconds.
+     */
     public void serverStartupError() {
-        logMessage("Error on server startup. Trying again in 5 sec...");
+        displayMessage("Error on server startup. Trying again in 5 sec...");
         try {
             Thread.sleep(5000);
         } catch (InterruptedException e) {
@@ -46,62 +65,65 @@ public class ChatBackend {
         startServer();
     }
 
-
+    /*
     // methods for reacting to user input and events triggered subsequently
+     */
 
     /**
-     * Called when the user initiates a connection to a remote host
-     * @param address
+     * Called by the controller when the user initiates a connection to a remote host.
+     * Starts the outgoing connection on a separate thread.
+     * @param address the address to connect to
      */
     public void connectTo(String address) {
-        System.err.println(Thread.currentThread().getName() + " initializeOutgoingConnection");
-
         if (outgoingConnection != null || activeChatSession != null) {
-            throw new RuntimeException("Session already ongoing. Start button should be inactivated.");
+            System.err.println("Session already ongoing. Start button should be inactivated.");
+            outgoingConnectionError();
         }
 
         outgoingConnection = new OutgoingConnection(this, address, DEFAULT_PORT);
         Thread thread = new Thread(outgoingConnection);
-        thread.setDaemon(true);
-        thread.setName("Outgoing Connection Thread");
         thread.start();
     }
 
-    public void outgoingConnectionError() {
-        System.err.println(Thread.currentThread().getName() + " outgoingConnectionError");
+    // methods called by OutgoingConnection
 
+    /**
+     * Called when the outgoing connection generates an error
+     */
+    public void outgoingConnectionError(String address) {
         outgoingConnection = null;
-        logMessage("could not establish an outgoing connection with ...");
-        Platform.runLater(chatController::outgoingConnectionFailed);
+        displayMessage("Could not establish an outgoing connection with " + address);
+        controller.outgoingConnectionFailed();
     }
 
+    /**
+     * Called when the remote host has accepted the connection. Starts a chat session on a new thread.
+     */
     public void outgoingConnectionEstablished(Socket socket) {
         outgoingConnection = null;
 
         activeChatSession = new ChatSession(socket, this);
         Thread thread = new Thread(activeChatSession);
-        thread.setDaemon(true);
-        thread.setName("Chat Session From Client Thread");
         thread.start();
     }
 
-    public void outgoingConnectionRefused() {
-        System.err.println(Thread.currentThread().getName() + " outgoingConnectionRefused");
-
+    /**
+     * Called when the remote host has refused the connection
+     */
+    public void outgoingConnectionRefused(String address) {
         activeChatSession = null;
-        logMessage("remote host rejected connection");
-        Platform.runLater(chatController::outgoingConnectionFailed);
+        displayMessage("Remote host " + address + " has refused the connection");
+        controller.outgoingConnectionFailed();
     }
 
+    // methods called by ChatSession
     public void sessionStarted(ChatSession chatSession, String ownPublicKey, String othersPublicKey) {
         activeChatSession = chatSession;
-        logMessage("New session started");
-        Platform.runLater(() -> chatController.sessionStarted(ownPublicKey, othersPublicKey));
+        displayMessage("New session started");
+        controller.sessionStarted(ownPublicKey, othersPublicKey, chatSession.getRemoteAddress());
     }
 
     public void cancelOutgoingConnection() {
-        System.err.println(Thread.currentThread().getName() + " cancelOutgoingConnection");
-
         if (outgoingConnection != null) {
             outgoingConnection.cancel();
             outgoingConnection = null;
@@ -113,8 +135,6 @@ public class ChatBackend {
     }
 
     public void stopActiveSession() {
-        System.err.println(Thread.currentThread().getName() + " stopCurrentSession");
-
         if (activeChatSession != null) {
             activeChatSession.cancel();
             activeChatSession = null;
@@ -122,13 +142,13 @@ public class ChatBackend {
     }
 
     public void sessionEnding() {
-        Platform.runLater(chatController::sessionEnded);
+        controller.sessionEnded();
     }
 
     // other methods
 
-    private void logMessage(String message) {
-        Platform.runLater(() -> chatController.appendToChat(message));
+    private void displayMessage(String message) {
+        controller.displayMessage(message);
     }
 
     public void sendMessage(String message) {
@@ -136,7 +156,7 @@ public class ChatBackend {
     }
 
     public void receiveMessage(String message) {
-        logMessage(message);
+        displayMessage(message);
     }
 
     public boolean hasOngoingChatSession() {
@@ -161,5 +181,12 @@ public class ChatBackend {
 
         Platform.runLater(confirm);
         return confirm;
+    }
+
+    public void shutdown() {
+        if (server != null) {
+            server.deactivate();
+        }
+        cancelOutgoingConnection();
     }
 }

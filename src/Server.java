@@ -7,13 +7,12 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.ExecutionException;
 
 public class Server implements Runnable {
-    private final ChatBackend chatBackend;
+    private final Model model;
     private final int port;
-    private ServerSocket serverSocket;
     private boolean active = true;
 
-    public Server(ChatBackend chatBackend, int port) {
-        this.chatBackend = chatBackend;
+    public Server(Model model, int port) {
+        this.model = model;
         this.port = port;
     }
 
@@ -26,11 +25,11 @@ public class Server implements Runnable {
             serverSocket.setSoTimeout(2000);
         } catch (IOException e) {
             e.printStackTrace();
-            chatBackend.serverStartupError();
+            model.serverStartupError();
             return;
         }
 
-        chatBackend.serverStarted();
+        model.serverStarted();
 
         while (active) {
             try {
@@ -46,15 +45,21 @@ public class Server implements Runnable {
             }
         }
 
+        try {
+            serverSocket.close();
+        } catch (IOException e) {
+            // ignore
+        }
+
     }
 
     private void tryConnection(Socket socket) {
-        if (chatBackend.hasOngoingChatSession()) {
+        if (model.hasOngoingChatSession()) {
             declineConnection(socket);
             return;
         }
 
-        Task<Boolean> confirmation = chatBackend.promptUserForConfirmation(socket);
+        Task<Boolean> confirmation = model.promptUserForConfirmation(socket);
         try {
             if (confirmation.get()) {
                 acceptConnection(socket);
@@ -67,7 +72,7 @@ public class Server implements Runnable {
     }
 
     private void acceptConnection(Socket socket) {
-        ChatSession toBeAccepted = new ChatSession(socket, chatBackend, Command.ACCEPTED);
+        ChatSession toBeAccepted = new ChatSession(socket, model, Command.ACCEPTED);
 
         Thread thread = new Thread(toBeAccepted);
         thread.setDaemon(true);
@@ -75,7 +80,7 @@ public class Server implements Runnable {
     }
 
     private void declineConnection(Socket socket) {
-        ChatSession toBeDeclined = new ChatSession(socket, chatBackend, Command.DECLINED);
+        ChatSession toBeDeclined = new ChatSession(socket, model, Command.DECLINED);
 
         Thread thread = new Thread(toBeDeclined);
         thread.setDaemon(true);

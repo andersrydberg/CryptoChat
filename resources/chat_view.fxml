@@ -5,7 +5,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.text.*?>
 
-<HBox prefHeight="600.0" prefWidth="800.0" spacing="20.0" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ChatController">
+<HBox prefHeight="600.0" prefWidth="800.0" spacing="20.0" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="Controller">
    <children>
       <VBox>
          <children>
@@ -14,7 +14,7 @@
                   <Insets />
                </VBox.margin>
             </Label>
-            <TextField fx:id="ipField" prefHeight="27.0" prefWidth="124.0">
+            <TextField fx:id="ipTextField" prefHeight="27.0" prefWidth="124.0">
                <font>
                   <Font size="14.0" />
                </font>
@@ -22,16 +22,16 @@
                   <Insets />
                </VBox.margin>
             </TextField>
-            <Button fx:id="mainButton" mnemonicParsing="false" text="Start session" onAction="#buttonHandler">
+            <Button fx:id="mainButton" mnemonicParsing="false" onAction="#buttonHandler" text="Start session">
                <VBox.margin>
                   <Insets top="10.0" />
                </VBox.margin></Button>
             <TextFlow minHeight="-Infinity" prefHeight="50.0" prefWidth="200.0">
                <VBox.margin>
-                  <Insets top="100.0" />
+                  <Insets top="60.0" />
                </VBox.margin>
                <children>
-                  <Text fx:id="displayText" strokeType="OUTSIDE" strokeWidth="0.0" text="No ongoing session. Enter the IP address of your contact and press Start to start a session.">
+                  <Text fx:id="displayText" strokeType="OUTSIDE" strokeWidth="0.0">
                      <font>
                         <Font size="14.0" />
                      </font>
@@ -46,15 +46,15 @@
                         <Insets />
                      </VBox.margin>
                   </TextField>
-                  <Label text="Contact's public key">
+                  <Label text="Your partner's public key">
                      <VBox.margin>
                         <Insets top="10.0" />
                      </VBox.margin>
                   </Label>
-                  <TextField fx:id="othersKeyField" />
+                  <TextField fx:id="othersKeyField" editable="false" />
                </children>
                <VBox.margin>
-                  <Insets top="100.0" />
+                  <Insets top="140.0" />
                </VBox.margin>
             </VBox>
          </children>
@@ -70,8 +70,8 @@
             <Insets />
          </HBox.margin>
          <children>
-            <TextArea fx:id="chatArea" prefHeight="600.0" prefWidth="200.0" VBox.vgrow="ALWAYS" editable="false" />
-            <TextField fx:id="chatInputField" disable="true" onAction="#sendMessageHandler" />
+            <TextArea fx:id="chatArea" editable="false" prefHeight="600.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
+            <TextField fx:id="chatTextField" disable="true" onAction="#sendMessageHandler" />
          </children></VBox>
    </children>
    <padding>

@@ -9,13 +9,13 @@ import java.net.SocketTimeoutException;
  */
 public class OutgoingConnection implements Runnable {
 
-    private final ChatBackend chatBackend;
+    private final Model model;
     private final String host;
     private final int port;
     private boolean cancelled = false;
 
-    public OutgoingConnection(ChatBackend chatBackend, String host, int port) {
-        this.chatBackend = chatBackend;
+    public OutgoingConnection(Model model, String host, int port) {
+        this.model = model;
         this.host = host;
         this.port = port;
     }
@@ -26,24 +26,22 @@ public class OutgoingConnection implements Runnable {
     @Override
     public void run() {
         Socket socket = new Socket();
+        InetSocketAddress inetSocketAddress;
 
         try {
-            InetSocketAddress inetSocketAddress = new InetSocketAddress(host, port);
-
-            System.err.println(Thread.currentThread().getName() + " OutgoingConnection.run 1");
+            inetSocketAddress = new InetSocketAddress(host, port);
 
             while (!cancelled) {
                 try {
                     socket.connect(inetSocketAddress, 5000);
-                    chatBackend.outgoingConnectionEstablished(socket);
+                    model.outgoingConnectionEstablished(socket);
                     break;
                 } catch (SocketTimeoutException e) {
                     // continue
                 }
             }
         } catch (IOException e) {
-            System.err.println(e.getClass().toString() + ": " + e.getMessage());
-            chatBackend.outgoingConnectionError();
+            model.outgoingConnectionRefused(host);
         }
     }
 

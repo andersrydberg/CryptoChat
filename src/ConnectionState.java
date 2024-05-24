@@ -1,3 +1,7 @@
+
+/**
+ * Enum used to represent the application's state of connection
+ */
 public enum ConnectionState {
     INACTIVE, // no ongoing chat session
     CONNECTING, // attempting to start a chat session with a remote host

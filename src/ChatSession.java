@@ -1,4 +1,3 @@
-import javax.crypto.SealedObject;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -13,7 +12,7 @@ import java.security.SignedObject;
 public class ChatSession implements Runnable {
 
     private final Socket socket;
-    private final ChatBackend chatBackend;
+    private final Model model;
     private final Command response;
     private boolean cancelled;
     private ObjectInputStream ois;
@@ -24,11 +23,11 @@ public class ChatSession implements Runnable {
 
     /**
      * Called when localhost initiates an outgoing connection (i.e. acts as client)
-     * @param chatBackend
+     * @param model
      */
-    public ChatSession(Socket socket, ChatBackend chatBackend) {
+    public ChatSession(Socket socket, Model model) {
         this.socket = socket;
-        this.chatBackend = chatBackend;
+        this.model = model;
         this.response = null;
         this.cancelled = false;
     }
@@ -36,16 +35,16 @@ public class ChatSession implements Runnable {
     /**
      * Called when localhost receives an incoming connection (i.e. acts as server)
      * @param socket
-     * @param chatBackend
+     * @param model
      * @param response
      */
-    public ChatSession(Socket socket, ChatBackend chatBackend, Command response) {
+    public ChatSession(Socket socket, Model model, Command response) {
         if (!response.equals(Command.ACCEPTED) && !response.equals(Command.DECLINED)) {
             throw new RuntimeException("ChatSession constructed with bad arguments");
         }
 
         this.socket = socket;
-        this.chatBackend = chatBackend;
+        this.model = model;
         this.response = response;
         this.cancelled = false;
     }
@@ -64,7 +63,7 @@ public class ChatSession implements Runnable {
                     try {
                         Command responseFromRemoteHost = (Command) ois.readObject();
                         if (responseFromRemoteHost.equals(Command.DECLINED)) {
-                            chatBackend.outgoingConnectionRefused();
+                            model.outgoingConnectionRefused(socket.getInetAddress().toString());
                             return;
                         }
                         break;
@@ -85,7 +84,7 @@ public class ChatSession implements Runnable {
             cryptographer = new Cryptographer();
             cryptographer.exchangeKeys(ois, oos);
 
-            chatBackend.sessionStarted(this, cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
+            model.sessionStarted(this, cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
 
             readFromClient();
 
@@ -99,7 +98,7 @@ public class ChatSession implements Runnable {
                     // ignore
                 }
             }
-            chatBackend.sessionEnding();
+            model.sessionEnding();
             try {
                 socket.close();
             } catch (IOException e) {
@@ -110,8 +109,6 @@ public class ChatSession implements Runnable {
 
 
     private void readFromClient() throws Exception {
-        System.err.println(Thread.currentThread().getName() + " ChatSession.readFromClient");
-
         while (!cancelled) {
             try {
                 Command command = (Command) ois.readObject();
@@ -122,7 +119,7 @@ public class ChatSession implements Runnable {
                 } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
                     String message = cryptographer.decipher((SignedObject) ois.readObject());
-                    chatBackend.receiveMessage(message);
+                    model.receiveMessage(message);
                 } else {
                     // bad grammar
                     break;
@@ -138,7 +135,7 @@ public class ChatSession implements Runnable {
                 System.err.println(e.getMessage());
                 break;
             } catch (IOException e) {
-                System.err.println(e.getMessage());
+                System.err.println(e.getClass().toString() + ": " + e.getMessage());
                 break;
             }
         }
@@ -154,6 +151,10 @@ public class ChatSession implements Runnable {
 
     public void cancel() {
         cancelled = true;
+    }
+
+    public String getRemoteAddress() {
+        return socket.getInetAddress().toString();
     }
 
     private class WriteToRemoteHost implements Runnable{

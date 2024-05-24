@@ -6,22 +6,27 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
-public class ChatApp extends Application {
+/**
+ * JavaFX main class
+ */
+public class CryptoChat extends Application {
 
-    private ChatController controller;
+    private Controller controller;
 
+    /**
+     * Loads the fxml file that specifies the main scene layout.
+     * User input triggers event handlers in the controller.
+     */
     @Override
     public void start(Stage primaryStage) throws IOException {
-
         FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("chat_view.fxml"));
         Parent root = fxmlLoader.load();
         controller = fxmlLoader.getController();
 
         primaryStage.setScene(new Scene(root));
-        primaryStage.setTitle("Chat App");
+        primaryStage.setTitle("CryptoChat");
         primaryStage.setResizable(false);
         primaryStage.show();
-
     }
 
     /**
