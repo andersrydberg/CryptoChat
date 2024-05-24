@@ -77,7 +77,7 @@ public class Model {
     public void connectTo(String address) {
         if (outgoingConnection != null || activeChatSession != null) {
             System.err.println("Session already ongoing. Start button should be inactivated.");
-            outgoingConnectionError();
+            outgoingConnectionError(address);
         }
 
         outgoingConnection = new OutgoingConnection(this, address, DEFAULT_PORT);
