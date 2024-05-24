@@ -65,12 +65,43 @@ public class Model {
         startServer();
     }
 
+    /**
+     * Called when there is an incoming connection. Prompts the user to accept or reject the connection.
+     * @param socket the socket opened for the incoming connection
+     * @return a Task object whose return value can be retrieved
+     */
+    public Task<Boolean> promptUserForConfirmation(Socket socket) {
+
+        // first create the Task (which runs in its own thread and has a return value when successfully executed)
+        final String inetAddress =
+                socket.getInetAddress().toString()
+                        + " on port " + socket.getPort()
+                        + " (local port is "
+                        + socket.getLocalPort() + ")";
+        var confirm = new Task<Boolean>() {
+            @Override
+            protected Boolean call() {
+                var result = new Alert(Alert.AlertType.CONFIRMATION,
+                        String.format("Accept connection from %s?", inetAddress))
+                        .showAndWait();
+                return (result.isPresent() && result.get() == ButtonType.OK);   // true if user accepts
+            }
+        };
+
+        // run the task on the JavaFx Application thread
+        Platform.runLater(confirm);
+
+        // return the task so its return value can be retrieved
+        return confirm;
+    }
+
+
     /*
-    // methods for reacting to user input and events triggered subsequently
+    // methods called by the controller upon user interaction
      */
 
     /**
-     * Called by the controller when the user initiates a connection to a remote host.
+     * Called when the user initiates a connection to a remote host.
      * Starts the outgoing connection on a separate thread.
      * @param address the address to connect to
      */
@@ -85,7 +116,41 @@ public class Model {
         thread.start();
     }
 
+    /**
+     * Called when the user wants to send a chat message.
+     */
+    public void sendMessage(String message) {
+        activeChatSession.writeToRemoteHost(message);
+    }
+
+    /**
+     * Called when the user wants to cancel an outgoing connection.
+     */
+    public void cancelOutgoingConnection() {
+        if (outgoingConnection != null) {
+            outgoingConnection.cancel();
+            outgoingConnection = null;
+        }
+        if (activeChatSession != null) {
+            activeChatSession.cancel();
+            activeChatSession = null;
+        }
+    }
+
+    /**
+     * Called when the user wants to end an active chat session.
+     */
+    public void stopActiveSession() {
+        if (activeChatSession != null) {
+            activeChatSession.cancel();
+            activeChatSession = null;
+        }
+    }
+
+
+    /*
     // methods called by OutgoingConnection
+     */
 
     /**
      * Called when the outgoing connection generates an error
@@ -116,74 +181,54 @@ public class Model {
         controller.outgoingConnectionFailed();
     }
 
+    /*
     // methods called by ChatSession
+    */
+
+    /**
+     * Called when an active chat session has been successfully initiated.
+     * @param chatSession the ChatSession object
+     * @param ownPublicKey the user's (digested) public key
+     * @param othersPublicKey remote host's (digested) public key
+     */
     public void sessionStarted(ChatSession chatSession, String ownPublicKey, String othersPublicKey) {
         activeChatSession = chatSession;
         displayMessage("New session started");
         controller.sessionStarted(ownPublicKey, othersPublicKey, chatSession.getRemoteAddress());
     }
 
-    public void cancelOutgoingConnection() {
-        if (outgoingConnection != null) {
-            outgoingConnection.cancel();
-            outgoingConnection = null;
-        }
-        if (activeChatSession != null) {
-            activeChatSession.cancel();
-            activeChatSession = null;
-        }
-    }
-
-    public void stopActiveSession() {
-        if (activeChatSession != null) {
-            activeChatSession.cancel();
-            activeChatSession = null;
-        }
-    }
-
+    /**
+     * Called when an active chat session has been terminated by the remote host or for any other reason.
+     */
     public void sessionEnding() {
         activeChatSession = null;
         controller.sessionEnded();
     }
 
+    /**
+     * Called when a chat message has been received.
+     * @param message the chat message
+     */
+    public void receiveMessage(String message) {
+        displayMessage(message);
+    }
+
+
+    /*
     // other methods
+     */
 
     private void displayMessage(String message) {
         controller.displayMessage(message);
-    }
-
-    public void sendMessage(String message) {
-        activeChatSession.writeToRemoteHost(message);
-    }
-
-    public void receiveMessage(String message) {
-        displayMessage(message);
     }
 
     public boolean hasOngoingChatSession() {
         return activeChatSession != null;
     }
 
-    public Task<Boolean> promptUserForConfirmation(Socket socket) {
-        final String inetAddress =
-                socket.getInetAddress().toString()
-                        + " on port " + socket.getPort()
-                        + " (local port is "
-                        + socket.getLocalPort() + ")";
-        var confirm = new Task<Boolean>() {
-            @Override
-            protected Boolean call() {
-                var result = new Alert(Alert.AlertType.CONFIRMATION,
-                        String.format("Accept connection from %s?", inetAddress))
-                        .showAndWait();
-                return (result.isPresent() && result.get() == ButtonType.OK);
-            }
-        };
-
-        Platform.runLater(confirm);
-        return confirm;
-    }
-
+    /**
+     * Called by the controller at shutdown.
+     */
     public void shutdown() {
         if (server != null) {
             server.deactivate();
