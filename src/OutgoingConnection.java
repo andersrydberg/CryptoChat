@@ -5,10 +5,11 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 
 /**
- * Task assigned with connecting to the specified host on default port ... Uses a stream socket.
+ * A Runnable charged with establishing an outgoing connecting to the specified host/port.
+ * Runs until a connection has been established, i.e. the remote server has run
+ * "serverSocket.accept()", or any kind of error has occurred.
  */
 public class OutgoingConnection implements Runnable {
-
     private final Model model;
     private final String host;
     private final int port;
@@ -20,9 +21,6 @@ public class OutgoingConnection implements Runnable {
         this.port = port;
     }
 
-    /**
-     *
-     */
     @Override
     public void run() {
         Socket socket = new Socket();
@@ -41,7 +39,7 @@ public class OutgoingConnection implements Runnable {
                 }
             }
         } catch (IOException e) {
-            model.outgoingConnectionRefused(host);
+            model.outgoingConnectionFailed(host);
         }
     }
 

@@ -35,6 +35,11 @@ if at any time localhost cannot parse message from remote host or if remote host
                                                         -> 10
 
  */
+
+/**
+ * Instances of this enum are used as "commands" or "tokens" as part of the
+ * custom network protocol outlined in the comment above.
+ */
 public enum Command implements Serializable {
     ACCEPTED, DECLINED, MESSAGE
 }

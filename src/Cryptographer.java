@@ -7,6 +7,9 @@ import java.io.ObjectOutputStream;
 import java.security.*;
 import java.util.Base64;
 
+/**
+ * Handles all cryptography (symmetric as well as asymmetric).
+ */
 public class Cryptographer {
 
     private static final String DEFAULT_KEY_GENERATOR_ALGORITHM = "Blowfish";
@@ -25,6 +28,7 @@ public class Cryptographer {
     private final String keyPairGenAlgorithm;
     private final String transformationAsym;
     private final int keySizeAsym;
+    private final String signingAlgorithm;
 
 
     private SecretKey ownSecretKey;
@@ -41,6 +45,7 @@ public class Cryptographer {
         this.keyPairGenAlgorithm = DEFAULT_KEY_PAIR_GENERATOR_ALGORITHM;
         this.transformationAsym = DEFAULT_TRANSFORMATION_ASYMMETRIC;
         this.keySizeAsym = DEFAULT_KEY_SIZE_ASYMMETRIC;
+        this.signingAlgorithm = DEFAULT_SIGNING_ALGORITHM;
     }
 
     public Cryptographer(String keyGenAlgorithm,
@@ -48,21 +53,27 @@ public class Cryptographer {
                          int keySizeSym,
                          String keyPairGenAlgorithm,
                          String transformationAsym,
-                         int keySizeAsym) {
+                         int keySizeAsym,
+                         String signingAlgorithm) {
         this.keyGenAlgorithm = keyGenAlgorithm;
         this.transformationSym = transformationSym;
         this.keySizeSym = keySizeSym;
         this.keyPairGenAlgorithm = keyPairGenAlgorithm;
         this.transformationAsym = transformationAsym;
         this.keySizeAsym = keySizeAsym;
+        this.signingAlgorithm = signingAlgorithm;
     }
 
+    /**
+     * Exchanges secret keys with remote host by means of asymmetric cryptography.
+     * @param ois the input stream on which to read objects sent from remote host
+     * @param oos the output stream to which to write objects to remote host
+     * @throws Exception
+     */
     public void exchangeKeys(ObjectInputStream ois, ObjectOutputStream oos) throws Exception {
-        System.err.println(Thread.currentThread().getName() + " Cryptographer.exchangeKeys");
 
         // generate a secret key for symmetric encryption and decryption of messages
         ownSecretKey = getSecretKey();
-
 
         // generate a key pair for asymmetric cryptography (used for the exchange of secret keys)
         KeyPair keyPair = getKeyPair();
@@ -91,8 +102,7 @@ public class Cryptographer {
     }
 
     /**
-     * Returns a hashed version of the own public key
-     * @return
+     * @return a hashed version of the own public key
      */
     public String getOwnPublicKey() {
         if (ownPublicKey == null) {
@@ -102,8 +112,7 @@ public class Cryptographer {
     }
 
     /**
-     * Returns a hashed version of the other's public key
-     * @return
+     * @return a hashed version of the other's public key
      */
     public String getOthersPublicKey() {
         if (ownPublicKey == null) {
@@ -112,16 +121,31 @@ public class Cryptographer {
         return writeBytesInBase64(digest(othersPublicKey.getEncoded()));
     }
 
+    /**
+     * Encrypts the given message with user's secret key, then signs it with user's
+     * own private key.
+     * @param message the message to be ciphered
+     * @return the ciphered message
+     * @throws Exception
+     */
     public SignedObject cipher(String message) throws Exception {
         return sign(encrypt(message));
     }
 
+    /**
+     * Verifies the signature with remote host's public key, then decrypts it with
+     * remote host's secret key.
+     * @param signedObject
+     * @return
+     * @throws Exception
+     */
     public String decipher(SignedObject signedObject) throws Exception {
         return decryptMessage(verify(signedObject));
     }
 
 
     // helper methods for symmetric cryptography //
+
     /**
      * Instantiates a secret key of the given algorithm and key size.
      * @return the SecretKey instance
@@ -207,7 +231,7 @@ public class Cryptographer {
 
     private SignedObject sign(SealedObject sealedObject) throws Exception {
         try {
-            Signature signingEngine = Signature.getInstance(DEFAULT_SIGNING_ALGORITHM);
+            Signature signingEngine = Signature.getInstance(signingAlgorithm);
             return new SignedObject(sealedObject, ownPrivateKey, signingEngine);
         } catch (Exception e) {
             throw new Exception("Something went wrong while generating a signature");
@@ -216,7 +240,7 @@ public class Cryptographer {
 
     private SealedObject verify(SignedObject signedObject) throws Exception {
         try {
-            Signature verificationEngine = Signature.getInstance(DEFAULT_SIGNING_ALGORITHM);
+            Signature verificationEngine = Signature.getInstance(signingAlgorithm);
             if (signedObject.verify(othersPublicKey, verificationEngine)) {
                 return (SealedObject) signedObject.getObject();
             }
@@ -241,8 +265,8 @@ public class Cryptographer {
 
     /**
      * Generates an MD5 hash of the passed data (e.g. a public key)
-     * @param data
-     * @return
+     * @param data the data to be digested
+     * @return the digested data
      */
     private byte[] digest(byte[] data) {
         try {
@@ -252,6 +276,5 @@ public class Cryptographer {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-
     }
 }

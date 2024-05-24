@@ -108,7 +108,7 @@ public class Model {
     public void connectTo(String address) {
         if (outgoingConnection != null || activeChatSession != null) {
             System.err.println("Session already ongoing. Start button should be inactivated.");
-            outgoingConnectionError(address);
+            controller.outgoingConnectionFailed();
         }
 
         outgoingConnection = new OutgoingConnection(this, address, DEFAULT_PORT);
@@ -155,7 +155,7 @@ public class Model {
     /**
      * Called when the outgoing connection generates an error
      */
-    public void outgoingConnectionError(String address) {
+    public void outgoingConnectionFailed(String address) {
         outgoingConnection = null;
         displayMessage("Could not establish an outgoing connection with " + address);
         controller.outgoingConnectionFailed();
