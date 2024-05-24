@@ -142,6 +142,7 @@ public class Model {
     }
 
     public void sessionEnding() {
+        activeChatSession = null;
         controller.sessionEnded();
     }
 
