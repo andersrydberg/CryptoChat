@@ -1,7 +1,5 @@
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SealedObject;
-import javax.crypto.SecretKey;
+import javax.crypto.*;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.security.*;
@@ -104,7 +102,7 @@ public class Cryptographer {
     /**
      * @return a hashed version of the own public key
      */
-    public String getOwnPublicKey() {
+    public String getOwnPublicKey() throws NoSuchAlgorithmException {
         if (ownPublicKey == null) {
             throw new IllegalStateException("Own public key has not been generated yet.");
         }
@@ -114,7 +112,7 @@ public class Cryptographer {
     /**
      * @return a hashed version of the other's public key
      */
-    public String getOthersPublicKey() {
+    public String getOthersPublicKey() throws NoSuchAlgorithmException {
         if (ownPublicKey == null) {
             throw new IllegalStateException("Other's public key has not been retrieved yet.");
         }
@@ -149,17 +147,12 @@ public class Cryptographer {
     /**
      * Instantiates a secret key of the given algorithm and key size.
      * @return the SecretKey instance
-     * @throws Exception if something went wrong, e.g. the algorithm is not supported
+     * @throws NoSuchAlgorithmException if e.g. the algorithm is not supported
      */
-    private SecretKey getSecretKey() throws Exception {
-        try {
-            var keyGenerator = KeyGenerator.getInstance(keyGenAlgorithm);
-            keyGenerator.init(keySizeSym, new SecureRandom());
-            return keyGenerator.generateKey();
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            throw new Exception("Something went wrong while generating the secret key");
-        }
+    private SecretKey getSecretKey() throws NoSuchAlgorithmException {
+        var keyGenerator = KeyGenerator.getInstance(keyGenAlgorithm);
+        keyGenerator.init(keySizeSym, new SecureRandom());
+        return keyGenerator.generateKey();
     }
 
     /**
@@ -169,13 +162,9 @@ public class Cryptographer {
      * @throws Exception if the encryption failed for any reason
      */
     private SealedObject encrypt(String message) throws Exception {
-        try {
-            Cipher cipher = Cipher.getInstance(transformationSym);
-            cipher.init(Cipher.ENCRYPT_MODE, ownSecretKey);
-            return new SealedObject(message, cipher);
-        } catch (Exception e) {
-            throw new Exception("Something went wrong during the encryption of a message");
-        }
+        Cipher cipher = Cipher.getInstance(transformationSym);
+        cipher.init(Cipher.ENCRYPT_MODE, ownSecretKey);
+        return new SealedObject(message, cipher);
     }
 
     /**
@@ -185,11 +174,7 @@ public class Cryptographer {
      * @throws Exception if the decryption failed for any reason
      */
     private String decryptMessage(SealedObject sealedObject) throws Exception {
-        try {
-            return (String) sealedObject.getObject(othersSecretKey);
-        } catch (Exception e) {
-            throw new Exception("Something went wrong during the decryption of a message");
-        }
+        return (String) sealedObject.getObject(othersSecretKey);
     }
 
 
@@ -202,40 +187,24 @@ public class Cryptographer {
      * is not supported.
      */
     private KeyPair getKeyPair() throws Exception {
-        try {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance(keyPairGenAlgorithm);
-            keyGen.initialize(keySizeAsym, new SecureRandom());
-            return keyGen.generateKeyPair();
-        } catch (Exception e) {
-            throw new Exception("Something went wrong while generating the public/private keys");
-        }
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance(keyPairGenAlgorithm);
+        keyGen.initialize(keySizeAsym, new SecureRandom());
+        return keyGen.generateKeyPair();
     }
 
     private SealedObject encrypt(SecretKey secretKey) throws Exception {
-        try {
-            Cipher cipher = Cipher.getInstance(transformationAsym);
-            cipher.init(Cipher.ENCRYPT_MODE, othersPublicKey);
-            return new SealedObject(secretKey, cipher);
-        } catch (Exception e) {
-            throw new Exception("Something went wrong when encrypting your secret key");
-        }
+        Cipher cipher = Cipher.getInstance(transformationAsym);
+        cipher.init(Cipher.ENCRYPT_MODE, othersPublicKey);
+        return new SealedObject(secretKey, cipher);
     }
 
     private SecretKey decryptKey(SealedObject sealedObject) throws Exception {
-        try {
-            return (SecretKey) sealedObject.getObject(ownPrivateKey);
-        } catch (Exception e) {
-            throw new Exception("Something went wrong when decrypting your friend's secret key");
-        }
+        return (SecretKey) sealedObject.getObject(ownPrivateKey);
     }
 
     private SignedObject sign(SealedObject sealedObject) throws Exception {
-        try {
-            Signature signingEngine = Signature.getInstance(signingAlgorithm);
-            return new SignedObject(sealedObject, ownPrivateKey, signingEngine);
-        } catch (Exception e) {
-            throw new Exception("Something went wrong while generating a signature");
-        }
+        Signature signingEngine = Signature.getInstance(signingAlgorithm);
+        return new SignedObject(sealedObject, ownPrivateKey, signingEngine);
     }
 
     private SealedObject verify(SignedObject signedObject) throws Exception {
@@ -267,14 +236,11 @@ public class Cryptographer {
      * Generates an MD5 hash of the passed data (e.g. a public key)
      * @param data the data to be digested
      * @return the digested data
+     * @throws NoSuchAlgorithmException if e.g. the algorithm is not supported
      */
-    private byte[] digest(byte[] data) {
-        try {
+    private byte[] digest(byte[] data) throws NoSuchAlgorithmException {
             MessageDigest md = MessageDigest.getInstance("MD5");
             md.update(data);
             return md.digest();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
     }
 }

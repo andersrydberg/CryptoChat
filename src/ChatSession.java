@@ -56,15 +56,17 @@ public class ChatSession implements Runnable {
             this.oos = oos;
             this.ois = ois;
 
+            // set a timeout so reads do not block indefinitely, so we can check if the thread has been cancelled
             socket.setSoTimeout(1000);
 
+            // local user is the initiator, we expect a response from remote host
             if (response == null) {
 
                 while (!cancelled) {
                     try {
                         Command responseFromRemoteHost = (Command) ois.readObject();
                         if (responseFromRemoteHost.equals(Command.DECLINED)) {
-                            model.sessionRefused(socket.getInetAddress().toString());
+                            model.sessionDeclinedByRemoteHost(getRemoteAddress());
                             return;
                         }
                         break;
@@ -74,14 +76,17 @@ public class ChatSession implements Runnable {
                 }
 
                 if (cancelled) {
+                    model.sessionCancelled(getRemoteAddress());
                     return;
                 }
 
+            // remote host is the initiator, we send our response
             } else {
                 oos.writeObject(response);
                 oos.flush();
 
                 if (response.equals(Command.DECLINED)) {
+                    model.sessionDeclinedByUser(getRemoteAddress());
                     return;
                 }
             }
@@ -93,17 +98,21 @@ public class ChatSession implements Runnable {
 
             readFromClient();
 
+            if (cancelled) {
+                model.sessionCancelled(getRemoteAddress());
+            }
+
         } catch (Exception e) {
-            // ignore
+            model.sessionEnding(getRemoteAddress());
         } finally {
             synchronized (lock) {
                 try {
                     oos.writeObject(Command.DECLINED);
+                    oos.flush();
                 } catch (IOException e) {
                     // ignore
                 }
             }
-            model.sessionEnding();
             try {
                 socket.close();
             } catch (IOException e) {
@@ -114,40 +123,59 @@ public class ChatSession implements Runnable {
 
 
     private void readFromClient() throws Exception {
+
         while (!cancelled) {
             try {
                 Command command = (Command) ois.readObject();
 
+                // remote host has quit
                 if (command.equals(Command.DECLINED)) {
-                    // remote host has closed
+                    model.sessionEndedByRemoteHost(getRemoteAddress());
                     break;
+
+                // incoming message
                 } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
                     String message = cryptographer.decipher((SignedObject) ois.readObject());
                     model.receiveMessage(message);
+
+                // protocol breach (unexpected enum value)
                 } else {
-                    // bad grammar
+                    model.sessionEndedByProtocolBreach(getRemoteAddress());
                     break;
                 }
 
             } catch (SocketTimeoutException e) {
                 // ignore
+
+            // protocol breach (unexpected object)
             } catch (ClassCastException e) {
-                // bad grammar
+                model.sessionEndedByProtocolBreach(getRemoteAddress());
                 break;
-            } catch (ClassNotFoundException e) {
-                // should not occur
-                System.err.println(e.getMessage());
-                break;
-            } catch (IOException e) {
-                System.err.println(e.getClass().toString() + ": " + e.getMessage());
+
+            } catch (ClassNotFoundException | IOException e) {
+                e.printStackTrace();
+                model.sessionEnding(getRemoteAddress());
                 break;
             }
         }
     }
 
     public void writeToRemoteHost(String message) {
-        WriteToRemoteHost writeTask = new WriteToRemoteHost(message);
+        var writeTask = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    synchronized (lock) {
+                        oos.writeObject(Command.MESSAGE);
+                        oos.writeObject(cryptographer.cipher(message));
+                        oos.flush();
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
 
         Thread thread = new Thread(writeTask);
         thread.setDaemon(true);
@@ -162,25 +190,5 @@ public class ChatSession implements Runnable {
         return socket.getInetAddress().toString();
     }
 
-    private class WriteToRemoteHost implements Runnable{
-        private final String message;
-
-        public WriteToRemoteHost(String message) {
-            this.message = message;
-        }
-
-        @Override
-        public void run() {
-            try {
-                synchronized (lock) {
-                    oos.writeObject(Command.MESSAGE);
-                    oos.writeObject(cryptographer.cipher(message));
-                    oos.flush();
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
 }
 
