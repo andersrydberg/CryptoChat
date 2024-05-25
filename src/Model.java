@@ -108,7 +108,7 @@ public class Model {
     public void connectTo(String address) {
         if (outgoingConnection != null || activeChatSession != null) {
             System.err.println("Session already ongoing. Start button should be inactivated.");
-            controller.outgoingConnectionFailed();
+            controller.sessionEnded();
         }
 
         outgoingConnection = new OutgoingConnection(this, address, DEFAULT_PORT);
@@ -129,11 +129,9 @@ public class Model {
     public void cancelOutgoingConnection() {
         if (outgoingConnection != null) {
             outgoingConnection.cancel();
-            outgoingConnection = null;
         }
         if (activeChatSession != null) {
             activeChatSession.cancel();
-            activeChatSession = null;
         }
     }
 
@@ -152,13 +150,19 @@ public class Model {
     // methods called by OutgoingConnection
      */
 
+    public void outgoingConnectionCancelled(String address) {
+        outgoingConnection = null;
+        displayMessage("Outgoing connection with " + address + " cancelled.");
+        controller.sessionEnded();
+    }
+
     /**
      * Called when the outgoing connection generates an error
      */
     public void outgoingConnectionFailed(String address) {
         outgoingConnection = null;
         displayMessage("Could not establish an outgoing connection with " + address);
-        controller.outgoingConnectionFailed();
+        controller.sessionEnded();
     }
 
     /**
@@ -172,18 +176,19 @@ public class Model {
         thread.start();
     }
 
-    /**
-     * Called when the remote host has refused the connection
-     */
-    public void outgoingConnectionRefused(String address) {
-        activeChatSession = null;
-        displayMessage("Remote host " + address + " has refused the connection");
-        controller.outgoingConnectionFailed();
-    }
 
     /*
     // methods called by ChatSession
     */
+
+    /**
+     * Called when the remote host has refused the connection
+     */
+    public void sessionRefused(String address) {
+        activeChatSession = null;
+        displayMessage("Remote host " + address + " has refused the connection");
+        controller.sessionEnded();
+    }
 
     /**
      * Called when an active chat session has been successfully initiated.
@@ -193,7 +198,7 @@ public class Model {
      */
     public void sessionStarted(ChatSession chatSession, String ownPublicKey, String othersPublicKey) {
         activeChatSession = chatSession;
-        displayMessage("New session started");
+        displayMessage("New session started.");
         controller.sessionStarted(ownPublicKey, othersPublicKey, chatSession.getRemoteAddress());
     }
 
@@ -202,6 +207,7 @@ public class Model {
      */
     public void sessionEnding() {
         activeChatSession = null;
+        displayMessage("Session ended.");
         controller.sessionEnded();
     }
 

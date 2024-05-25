@@ -59,11 +59,12 @@ public class ChatSession implements Runnable {
             socket.setSoTimeout(1000);
 
             if (response == null) {
+
                 while (!cancelled) {
                     try {
                         Command responseFromRemoteHost = (Command) ois.readObject();
                         if (responseFromRemoteHost.equals(Command.DECLINED)) {
-                            model.outgoingConnectionRefused(socket.getInetAddress().toString());
+                            model.sessionRefused(socket.getInetAddress().toString());
                             return;
                         }
                         break;
@@ -71,7 +72,11 @@ public class ChatSession implements Runnable {
                         // continue
                     }
                 }
-                if (cancelled) return;
+
+                if (cancelled) {
+                    return;
+                }
+
             } else {
                 oos.writeObject(response);
                 oos.flush();

@@ -58,6 +58,8 @@ public class Controller {
                     mainButton.setText("Start session");
                     chatTextField.setDisable(true);
                     publicKeyBox.setDisable(true);
+                    ownKeyField.clear();
+                    othersKeyField.clear();
                     displayText.setText(NO_SESSION_MSG);
                 }
                 case CONNECTING -> {
@@ -110,7 +112,6 @@ public class Controller {
                 // cancel the outgoing connection (e.g. before the connection has been rejected or accepted by the remote host)
                 connectionState.set(ConnectionState.CANCELLING_OUTGOING_CONNECTION);
                 model.cancelOutgoingConnection();
-                connectionState.set(ConnectionState.INACTIVE);
             }
             case ACTIVE_SESSION -> {
                 // end the active session
@@ -162,22 +163,9 @@ public class Controller {
     }
 
     /**
-     * Called when an active session has ended for any reason
-     * (either remote host has quit or some irreparable error has occurred)
+     * Called when an active session or outgoing connection attempt has ended for any reason
      */
     public void sessionEnded() {
-        Platform.runLater(() -> {
-            ownKeyField.clear();
-            othersKeyField.clear();
-
-            connectionState.set(ConnectionState.INACTIVE);
-        });
-    }
-
-    /**
-     * Called if remote host refuses a connection, or if there is an error connecting to the remote host.
-     */
-    public void outgoingConnectionFailed() {
         Platform.runLater(() -> connectionState.set(ConnectionState.INACTIVE));
     }
 

@@ -7,7 +7,7 @@ import java.net.SocketTimeoutException;
 /**
  * A Runnable charged with establishing an outgoing connecting to the specified host/port.
  * Runs until a connection has been established, i.e. the remote server has run
- * "serverSocket.accept()", or any kind of error has occurred.
+ * "serverSocket.accept()", or any kind of error has occurred, or until cancelled.
  */
 public class OutgoingConnection implements Runnable {
     private final Model model;
@@ -38,6 +38,11 @@ public class OutgoingConnection implements Runnable {
                     // continue
                 }
             }
+
+            if (cancelled) {
+                model.outgoingConnectionCancelled(host);
+            }
+
         } catch (IOException e) {
             model.outgoingConnectionFailed(host);
         }
