@@ -1,5 +1,4 @@
 import javax.crypto.*;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.security.*;
@@ -207,16 +206,19 @@ public class Cryptographer {
         return new SignedObject(sealedObject, ownPrivateKey, signingEngine);
     }
 
+    /**
+     * Verifies the signature of an encrypted message with remote host's public key
+     * @param signedObject the message to be verified
+     * @return the verified (encrypted) message
+     * @throws FailedVerificationException if the message could not be verified with remote host's public key
+     * @throws Exception if the verification failed for any other reason
+     */
     private SealedObject verify(SignedObject signedObject) throws Exception {
-        try {
-            Signature verificationEngine = Signature.getInstance(signingAlgorithm);
-            if (signedObject.verify(othersPublicKey, verificationEngine)) {
-                return (SealedObject) signedObject.getObject();
-            }
-            throw new Exception("Could not verify signature");
-        } catch (Exception e) {
-            throw new Exception("Something went wrong when verifying a signature");
+        Signature verificationEngine = Signature.getInstance(signingAlgorithm);
+        if (signedObject.verify(othersPublicKey, verificationEngine)) {
+            return (SealedObject) signedObject.getObject();
         }
+        throw new FailedVerificationException();
     }
 
 

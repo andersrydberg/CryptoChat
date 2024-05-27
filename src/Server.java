@@ -67,7 +67,7 @@ public class Server implements Runnable {
                 declineConnection(socket);
             }
         } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 

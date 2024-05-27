@@ -138,7 +138,6 @@ public class Controller {
     }
 
 
-
     /*
     // methods called by the model to update the view
     // these are called on other threads, so we wrap them with Platform.runLater

@@ -149,21 +149,6 @@ public class Model {
     // methods called by OutgoingConnection
      */
 
-    public void outgoingConnectionCancelled(String address) {
-        outgoingConnection = null;
-        displayMessage("You have cancelled the outgoing connection to " + address + ".");
-        controller.sessionEnded();
-    }
-
-    /**
-     * Called when the outgoing connection generates an error
-     */
-    public void outgoingConnectionFailed(String address) {
-        outgoingConnection = null;
-        displayMessage("Could not establish an outgoing connection to " + address);
-        controller.sessionEnded();
-    }
-
     /**
      * Called when the remote host has accepted the connection. Starts a chat session on a new thread.
      */
@@ -173,6 +158,12 @@ public class Model {
         activeChatSession = new ChatSession(socket, this);
         Thread thread = new Thread(activeChatSession);
         thread.start();
+    }
+
+    public void outgoingConnectionEnded(String message) {
+        outgoingConnection = null;
+        displayMessage(message);
+        controller.sessionEnded();
     }
 
 
@@ -192,51 +183,12 @@ public class Model {
         controller.sessionStarted(ownPublicKey, othersPublicKey, chatSession.getRemoteAddress());
     }
 
-    public void sessionCancelled(String address) {
-        activeChatSession = null;
-        displayMessage("You have cancelled the outgoing connection to " + address + ".");
-        controller.sessionEnded();
-    }
-
-    public void sessionDeclinedByUser(String address) {
-        activeChatSession = null;
-        displayMessage("You have declined an invite from " + address + ".");
-        controller.sessionEnded();
-    }
-
     /**
-     * Called when the remote host has refused the connection
+     * Called when an active chat session has been terminated for any reason.
      */
-    public void sessionDeclinedByRemoteHost(String address) {
+    public void sessionEnded(String message) {
         activeChatSession = null;
-        displayMessage("Remote host " + address + " has declined your invite.");
-        controller.sessionEnded();
-    }
-
-    public void sessionEndedByRemoteHost(String address) {
-        activeChatSession = null;
-        displayMessage("Remote host at " + address + " has left the chat session.");
-        controller.sessionEnded();
-    }
-
-    public void sessionEndedByUser(String address) {
-        activeChatSession = null;
-        displayMessage("You have ended the chat session with " + address + ".");
-        controller.sessionEnded();
-    }
-
-    public void sessionEndedByProtocolBreach(String address) {
-        activeChatSession = null;
-        displayMessage("There was an error communicating with " + address + ". Chat session ending.");
-        controller.sessionEnded();
-    }
-
-    /**
-     * Called when an active chat session has been terminated by the remote host or for any other reason.
-     */
-    public void sessionEnding(String address) {
-        activeChatSession = null;
-        displayMessage("Chat session with " + address + "ending.");
+        displayMessage(message);
         controller.sessionEnded();
     }
 

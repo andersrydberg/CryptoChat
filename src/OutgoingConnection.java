@@ -40,11 +40,11 @@ public class OutgoingConnection implements Runnable {
             }
 
             if (cancelled) {
-                model.outgoingConnectionCancelled(host);
+                model.outgoingConnectionEnded("You have cancelled the outgoing connection to " + host + ".");
             }
 
         } catch (IOException e) {
-            model.outgoingConnectionFailed(host);
+            model.outgoingConnectionEnded("Could not establish an outgoing connection to " + host);
         }
     }
 

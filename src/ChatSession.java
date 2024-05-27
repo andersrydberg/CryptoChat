@@ -6,8 +6,14 @@ import java.net.SocketTimeoutException;
 import java.security.SignedObject;
 
 /**
- * Thread runs for as long as the chat session is active.
- * Main purpose - read messages sent from client, delegate these to the Backend object
+ * A Runnable charged with all communication with remote host once a socket has connected.
+ * If the local user is the initiating party, reads the accept/decline response from remote
+ * host and reacts accordingly (closes the socket and ends execution if response is a decline).
+ * If the local user is the responding party, sends the response (and subsequently closes the
+ * socket and ends execution if response is a decline). If the response is an accept, performs
+ * public key exchange, after which encrypted and signed messages can be read and written
+ * (message writes are performed on a separate thread). Runs until either party disconnects,
+ * or any kind of unrecoverable error occurs.
  */
 public class ChatSession implements Runnable {
 
@@ -18,12 +24,14 @@ public class ChatSession implements Runnable {
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
     private Cryptographer cryptographer;
-    private final Object lock = new Object();
+    // writes are done from different threads, so we synchronize writes to avoid incorrect interleaving
+    private final Object writeLock = new Object();
 
 
     /**
-     * Called when localhost initiates an outgoing connection (i.e. acts as client)
-     * @param model
+     * Used when localhost initiates an outgoing connection (i.e. acts as client)
+     * @param socket the connected socket on which communication is to be performed
+     * @param model the calling object
      */
     public ChatSession(Socket socket, Model model) {
         this.socket = socket;
@@ -33,10 +41,10 @@ public class ChatSession implements Runnable {
     }
 
     /**
-     * Called when localhost receives an incoming connection (i.e. acts as server)
-     * @param socket
-     * @param model
-     * @param response
+     * Used when localhost receives an incoming connection (i.e. acts as server)
+     * @param socket the connected socket on which communication is to be performed
+     * @param model the calling object
+     * @param response the response to be sent to remote host
      */
     public ChatSession(Socket socket, Model model, Command response) {
         if (!response.equals(Command.ACCEPTED) && !response.equals(Command.DECLINED)) {
@@ -51,6 +59,8 @@ public class ChatSession implements Runnable {
 
     @Override
     public void run() {
+        boolean declineAlreadySent = false;
+
         try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
              ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
             this.oos = oos;
@@ -66,9 +76,11 @@ public class ChatSession implements Runnable {
                     try {
                         Command responseFromRemoteHost = (Command) ois.readObject();
                         if (responseFromRemoteHost.equals(Command.DECLINED)) {
-                            model.sessionDeclinedByRemoteHost(getRemoteAddress());
+                            model.sessionEnded("Remote host " + getRemoteAddress() + " has declined your invite.");
+                            declineAlreadySent = true;
                             return;
                         }
+                        // else Command.ACCEPTED
                         break;
                     } catch (SocketTimeoutException e) {
                         // continue
@@ -76,17 +88,20 @@ public class ChatSession implements Runnable {
                 }
 
                 if (cancelled) {
-                    model.sessionCancelled(getRemoteAddress());
+                    model.sessionEnded("You have cancelled the outgoing connection to " + getRemoteAddress() + ".");
                     return;
                 }
 
             // remote host is the initiator, we send our response
             } else {
-                oos.writeObject(response);
-                oos.flush();
+                synchronized (writeLock) {
+                    oos.writeObject(response);
+                    oos.flush();
+                }
 
                 if (response.equals(Command.DECLINED)) {
-                    model.sessionDeclinedByUser(getRemoteAddress());
+                    model.sessionEnded("You have declined an invite from " + getRemoteAddress() + ".");
+                    declineAlreadySent = true;
                     return;
                 }
             }
@@ -99,20 +114,30 @@ public class ChatSession implements Runnable {
             readFromClient();
 
             if (cancelled) {
-                model.sessionCancelled(getRemoteAddress());
+                model.sessionEnded("You have ended the chat session with " + getRemoteAddress() + ".");
             }
 
+        // protocol breach (unexpected object)
+        } catch (ClassCastException e) {
+            model.sessionEnded("There was an error communicating with " + getRemoteAddress() + ". Chat session ending.");
+
         } catch (Exception e) {
-            model.sessionEnding(getRemoteAddress());
+            e.printStackTrace();
+            model.sessionEnded("Chat session with " + getRemoteAddress() + " ending.");
+
         } finally {
-            synchronized (lock) {
-                try {
-                    oos.writeObject(Command.DECLINED);
-                    oos.flush();
-                } catch (IOException e) {
-                    // ignore
+            if (!declineAlreadySent) {
+                // notify remote host that session has ended
+                synchronized (writeLock) {
+                    try {
+                        oos.writeObject(Command.DECLINED);
+                        oos.flush();
+                    } catch (IOException e) {
+                        // ignore
+                    }
                 }
             }
+
             try {
                 socket.close();
             } catch (IOException e) {
@@ -120,7 +145,6 @@ public class ChatSession implements Runnable {
             }
         }
     }
-
 
     private void readFromClient() throws Exception {
 
@@ -130,35 +154,32 @@ public class ChatSession implements Runnable {
 
                 // remote host has quit
                 if (command.equals(Command.DECLINED)) {
-                    model.sessionEndedByRemoteHost(getRemoteAddress());
+                    model.sessionEnded("Remote host at " + getRemoteAddress() + " has left the chat session.");
                     break;
 
-                // incoming message
+                    // incoming message
                 } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
                     String message = cryptographer.decipher((SignedObject) ois.readObject());
                     model.receiveMessage(message);
 
-                // protocol breach (unexpected enum value)
+                    // protocol breach (unexpected enum value)
                 } else {
-                    model.sessionEndedByProtocolBreach(getRemoteAddress());
+                    model.sessionEnded("There was an error communicating with " + getRemoteAddress() + ". Chat session ending.");
                     break;
                 }
 
             } catch (SocketTimeoutException e) {
                 // ignore
 
-            // protocol breach (unexpected object)
-            } catch (ClassCastException e) {
-                model.sessionEndedByProtocolBreach(getRemoteAddress());
+            // signature could not be verified
+            } catch (FailedVerificationException e) {
+                model.sessionEnded("The message could not be verified with remote host's public key. Chat session with " + getRemoteAddress() + " ending.");
                 break;
 
-            } catch (ClassNotFoundException | IOException e) {
-                e.printStackTrace();
-                model.sessionEnding(getRemoteAddress());
-                break;
             }
         }
+
     }
 
     public void writeToRemoteHost(String message) {
@@ -166,7 +187,7 @@ public class ChatSession implements Runnable {
             @Override
             public void run() {
                 try {
-                    synchronized (lock) {
+                    synchronized (writeLock) {
                         oos.writeObject(Command.MESSAGE);
                         oos.writeObject(cryptographer.cipher(message));
                         oos.flush();
