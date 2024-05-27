@@ -6,6 +6,9 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.util.concurrent.ExecutionException;
 
+/**
+ * A Runnable tasked with running the server
+ */
 public class Server implements Runnable {
     private final Model model;
     private final int port;
@@ -18,41 +21,36 @@ public class Server implements Runnable {
 
     @Override
     public void run() {
+        //ServerSocket serverSocket;
 
-        ServerSocket serverSocket;
-        try {
-            serverSocket = new ServerSocket(port);
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            //serverSocket = new ServerSocket(port);
+
+            // set timeout so thread does not block indefinitely
             serverSocket.setSoTimeout(2000);
+
+            model.serverStarted();
+
+            while (active) {
+                try {
+                    Socket socket = serverSocket.accept();
+                    tryConnection(socket);
+
+                } catch (SocketTimeoutException e) {
+                    // ignore
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
-            model.serverStartupError();
-            return;
+            model.serverError();
         }
-
-        model.serverStarted();
-
-        while (active) {
-            try {
-                Socket socket = serverSocket.accept();
-                tryConnection(socket);
-
-            } catch (SocketTimeoutException e) {
-                // ignore
-            } catch (IOException e) {
-                e.printStackTrace();
-                break;
-            }
-        }
-
-        try {
-            serverSocket.close();
-        } catch (IOException e) {
-            // ignore
-        }
-
     }
 
-    private void tryConnection(Socket socket) {
+        private void tryConnection(Socket socket) {
         if (model.hasOngoingChatSession()) {
             declineConnection(socket);
             return;
@@ -88,5 +86,9 @@ public class Server implements Runnable {
 
     public void deactivate() {
         active = false;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 }

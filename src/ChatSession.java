@@ -59,10 +59,9 @@ public class ChatSession implements Runnable {
     public void run() {
         boolean declineAlreadySent = false;
 
-        try (ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
-             ObjectInputStream ois = new ObjectInputStream(socket.getInputStream())) {
-            this.oos = oos;
-            this.ois = ois;
+        try {
+            oos = new ObjectOutputStream(socket.getOutputStream());
+            ois = new ObjectInputStream(socket.getInputStream());
 
             // set a timeout so reads do not block indefinitely, so we can check if the thread has been cancelled
             socket.setSoTimeout(1000);
@@ -104,10 +103,17 @@ public class ChatSession implements Runnable {
                 }
             }
 
+            // allow for longer blocks during key exchange, since reads here are not looped;
+            // a timeout here terminates the connection
+            socket.setSoTimeout(10000);
+
             cryptographer = new Cryptographer();
             cryptographer.exchangeKeys(ois, oos);
 
             model.sessionStarted(this, cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
+
+            // reset to shorter timeout to allow for a faster response to a user cancel
+            socket.setSoTimeout(1000);
 
             readFromRemoteHost();
 
@@ -164,7 +170,7 @@ public class ChatSession implements Runnable {
                 } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
                     String message = cryptographer.decipher((SignedObject) ois.readObject());
-                    model.receiveMessage(message);
+                    model.readMessage(message);
 
                 // protocol breach (unexpected enum value)
                 } else {
@@ -198,8 +204,10 @@ public class ChatSession implements Runnable {
                         oos.writeObject(cryptographer.cipher(message));
                         oos.flush();
                     }
+                    model.wroteMessage(message);
+
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    model.errorWritingMessage(message);
                 }
             }
         };

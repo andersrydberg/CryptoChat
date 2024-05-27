@@ -134,7 +134,7 @@ public class Controller {
 
         chatTextField.clear();
         model.sendMessage(message);
-        appendToChatArea("You: " + message);
+        //appendToChatArea("You: " + message);
     }
 
 

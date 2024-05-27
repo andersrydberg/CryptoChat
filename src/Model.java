@@ -53,15 +53,22 @@ public class Model {
     }
 
     /**
-     * Called when there is an error upon server startup. Restarts server after 5 seconds.
+     * Called when there is a server error. Restarts server after 5 seconds.
      */
-    public void serverStartupError() {
-        displayMessage("Error on server startup. Trying again in 5 sec...");
+    public void serverError() {
+        displayMessage("Server error. Restarting server in 5 seconds...");
+
         try {
             Thread.sleep(5000);
         } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        // don't restart the server if the app is shutting down
+        if (!server.isActive()) {
             return;
         }
+
         startServer();
     }
 
@@ -72,8 +79,8 @@ public class Model {
      */
     public Task<Boolean> promptUserForConfirmation(Socket socket) {
 
-        // first create the Task (which runs in its own thread and has a return value when successfully executed)
-        final String inetAddress =
+        // first create the Task (it will have a return value when successfully executed)
+        String inetAddress =
                 socket.getInetAddress().toString()
                         + " on port " + socket.getPort()
                         + " (local port is "
@@ -130,9 +137,8 @@ public class Model {
         if (outgoingConnection != null) {
             outgoingConnection.cancel();
         }
-        if (activeChatSession != null) {
-            activeChatSession.cancel();
-        }
+        // if a connection to the remote host has been established but no accept/decline command has been received
+        stopActiveSession();
     }
 
     /**
@@ -193,12 +199,35 @@ public class Model {
     }
 
     /**
-     * Called when a chat message has been received.
+     * Called when a chat message has been read.
      * @param message the chat message
      */
-    public void receiveMessage(String message) {
+    public void readMessage(String message) {
         displayMessage(message);
     }
+
+
+
+    /*
+    // methods called by "writeTask" in ChatSession.writeToRemoteHost
+     */
+
+    /**
+     * Called when a message has been successfully written to the output stream
+     * @param message the message that was written
+     */
+    public void wroteMessage(String message) {
+        displayMessage("You: " + message);
+    }
+
+    /**
+     * Called when there was an error writing to the output stream
+     * @param message the message that was being written
+     */
+    public void errorWritingMessage(String message) {
+        displayMessage("There was an error writing your message: " + message);
+    }
+
 
 
     /*
