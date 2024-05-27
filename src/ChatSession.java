@@ -20,7 +20,7 @@ public class ChatSession implements Runnable {
     private final Socket socket;
     private final Model model;
     private final Command response;
-    private boolean cancelled;
+    private boolean cancelled = false;
     private ObjectInputStream ois;
     private ObjectOutputStream oos;
     private Cryptographer cryptographer;
@@ -37,7 +37,6 @@ public class ChatSession implements Runnable {
         this.socket = socket;
         this.model = model;
         this.response = null;
-        this.cancelled = false;
     }
 
     /**
@@ -54,7 +53,6 @@ public class ChatSession implements Runnable {
         this.socket = socket;
         this.model = model;
         this.response = response;
-        this.cancelled = false;
     }
 
     @Override
@@ -111,7 +109,7 @@ public class ChatSession implements Runnable {
 
             model.sessionStarted(this, cryptographer.getOwnPublicKey(), cryptographer.getOthersPublicKey());
 
-            readFromClient();
+            readFromRemoteHost();
 
             if (cancelled) {
                 model.sessionEnded("You have ended the chat session with " + getRemoteAddress() + ".");
@@ -146,7 +144,12 @@ public class ChatSession implements Runnable {
         }
     }
 
-    private void readFromClient() throws Exception {
+    /**
+     * Reads and decrypts messages from remote host until cancelled (the user terminates the session),
+     * a "declined" command is received (remote host terminates), or an irrecoverable error occurs.
+     * @throws Exception
+     */
+    private void readFromRemoteHost() throws Exception {
 
         while (!cancelled) {
             try {
@@ -157,13 +160,13 @@ public class ChatSession implements Runnable {
                     model.sessionEnded("Remote host at " + getRemoteAddress() + " has left the chat session.");
                     break;
 
-                    // incoming message
+                // incoming message
                 } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
                     String message = cryptographer.decipher((SignedObject) ois.readObject());
                     model.receiveMessage(message);
 
-                    // protocol breach (unexpected enum value)
+                // protocol breach (unexpected enum value)
                 } else {
                     model.sessionEnded("There was an error communicating with " + getRemoteAddress() + ". Chat session ending.");
                     break;
@@ -176,12 +179,15 @@ public class ChatSession implements Runnable {
             } catch (FailedVerificationException e) {
                 model.sessionEnded("The message could not be verified with remote host's public key. Chat session with " + getRemoteAddress() + " ending.");
                 break;
-
             }
         }
 
     }
 
+    /**
+     * Writes an encrypted message to the remote host.
+     * @param message the message to write
+     */
     public void writeToRemoteHost(String message) {
         var writeTask = new Runnable() {
             @Override

@@ -35,7 +35,6 @@ public class Server implements Runnable {
             try {
                 Socket socket = serverSocket.accept();
                 tryConnection(socket);
-                //chatBackend.tryIncomingConnection(socket);
 
             } catch (SocketTimeoutException e) {
                 // ignore
