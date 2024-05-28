@@ -204,6 +204,15 @@ public class Model {
     }
 
     /**
+     * Called when an incoming connection has been rejected (either because there is already an ongoing
+     * session, or because the user has chosen to decline).
+     * @param message the status message to display to the user
+     */
+    public void incomingConnectionDeclined(String message) {
+        displayMessage(message);
+    }
+
+    /**
      * Called when a chat message has been read from the input stream.
      * @param message the chat message
      */

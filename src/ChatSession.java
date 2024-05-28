@@ -97,7 +97,10 @@ public class ChatSession implements Runnable {
                 }
 
                 if (response.equals(Command.DECLINED)) {
-                    model.sessionEnded("You have declined an invite from " + getRemoteAddress() + ".");
+                    String message = model.hasOngoingChatSession() ?
+                            "An invite from " + getRemoteAddress() + " has been rejected as there is already an ongoing session" :
+                            "You have declined an invite from " + getRemoteAddress() + ".";
+                    model.incomingConnectionDeclined(message);
                     declineAlreadySent = true;
                     return;
                 }

@@ -80,7 +80,6 @@ public class Server implements Runnable {
         ChatSession toBeAccepted = new ChatSession(socket, model, Command.ACCEPTED);
 
         Thread thread = new Thread(toBeAccepted);
-        //thread.setDaemon(true);
         thread.start();
     }
 
@@ -92,7 +91,6 @@ public class Server implements Runnable {
         ChatSession toBeDeclined = new ChatSession(socket, model, Command.DECLINED);
 
         Thread thread = new Thread(toBeDeclined);
-        //thread.setDaemon(true);
         thread.start();
     }
 
