@@ -175,7 +175,7 @@ public class ChatSession implements Runnable {
                 } else if (command.equals(Command.MESSAGE)) {
                     // read encrypted message
                     String message = cryptographer.decipher((SignedObject) ois.readObject());
-                    model.readMessage(message);
+                    model.readMessage(getRemoteAddress() + ": " + message);
 
                 // protocol breach (unexpected enum value)
                 } else {

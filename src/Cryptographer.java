@@ -99,6 +99,7 @@ public class Cryptographer {
     }
 
     /**
+     *
      * @return a hashed version of the own public key
      */
     public String getOwnPublicKey() throws NoSuchAlgorithmException {
