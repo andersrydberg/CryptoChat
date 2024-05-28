@@ -198,6 +198,7 @@ public class Model {
      * @param message the status message to display to the user
      */
     public void sessionEnded(String message) {
+        outgoingConnection = null;
         activeChatSession = null;
         displayMessage(message);
         controller.sessionEnded();

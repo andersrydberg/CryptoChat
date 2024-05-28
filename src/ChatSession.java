@@ -26,6 +26,9 @@ public class ChatSession implements Runnable {
     private Cryptographer cryptographer;
     // writes are done from different threads, so we synchronize writes to avoid incorrect interleaving
     private final Object writeLock = new Object();
+    // helps us keep track of whether a decline has been sent (by any party), so we can avoid sending a second
+    // decline command to a socket that has already been closed on the other side
+    private boolean declineSent = false;
 
 
     /**
@@ -57,8 +60,6 @@ public class ChatSession implements Runnable {
 
     @Override
     public void run() {
-        boolean declineAlreadySent = false;
-
         try {
             oos = new ObjectOutputStream(socket.getOutputStream());
             ois = new ObjectInputStream(socket.getInputStream());
@@ -74,7 +75,7 @@ public class ChatSession implements Runnable {
                         Command responseFromRemoteHost = (Command) ois.readObject();
                         if (responseFromRemoteHost.equals(Command.DECLINED)) {
                             model.sessionEnded("Remote host " + getRemoteAddress() + " has declined your invite.");
-                            declineAlreadySent = true;
+                            declineSent = true;
                             return;
                         }
                         // else Command.ACCEPTED
@@ -101,7 +102,7 @@ public class ChatSession implements Runnable {
                             "An invite from " + getRemoteAddress() + " has been rejected as there is already an ongoing session" :
                             "You have declined an invite from " + getRemoteAddress() + ".";
                     model.incomingConnectionDeclined(message);
-                    declineAlreadySent = true;
+                    declineSent = true;
                     return;
                 }
             }
@@ -133,7 +134,7 @@ public class ChatSession implements Runnable {
             model.sessionEnded("Chat session with " + getRemoteAddress() + " ending.");
 
         } finally {
-            if (!declineAlreadySent) {
+            if (!declineSent) {
                 // notify remote host that session has ended
                 synchronized (writeLock) {
                     try {
@@ -167,6 +168,7 @@ public class ChatSession implements Runnable {
                 // remote host has quit
                 if (command.equals(Command.DECLINED)) {
                     model.sessionEnded("Remote host at " + getRemoteAddress() + " has left the chat session.");
+                    declineSent = true;
                     break;
 
                 // incoming message
