@@ -166,6 +166,10 @@ public class Model {
         thread.start();
     }
 
+    /**
+     * Called when a connection could not be established, or has been cancelled by the user.
+     * @param message the status message to display to the user
+     */
     public void outgoingConnectionEnded(String message) {
         outgoingConnection = null;
         displayMessage(message);
@@ -191,6 +195,7 @@ public class Model {
 
     /**
      * Called when an active chat session has been terminated for any reason.
+     * @param message the status message to display to the user
      */
     public void sessionEnded(String message) {
         activeChatSession = null;
@@ -199,7 +204,7 @@ public class Model {
     }
 
     /**
-     * Called when a chat message has been read.
+     * Called when a chat message has been read from the input stream.
      * @param message the chat message
      */
     public void readMessage(String message) {
@@ -207,13 +212,12 @@ public class Model {
     }
 
 
-
     /*
     // methods called by "writeTask" in ChatSession.writeToRemoteHost
      */
 
     /**
-     * Called when a message has been successfully written to the output stream
+     * Called when a message has been successfully written to the output stream.
      * @param message the message that was written
      */
     public void wroteMessage(String message) {
@@ -234,6 +238,10 @@ public class Model {
     // other methods
      */
 
+    /**
+     * Convenience method for writing messages to the chat area.
+     * @param message the message to be written
+     */
     private void displayMessage(String message) {
         controller.displayMessage(message);
     }
