@@ -188,6 +188,7 @@ public class Model {
      * @param othersPublicKey remote host's (digested) public key
      */
     public void sessionStarted(ChatSession chatSession, String ownPublicKey, String othersPublicKey) {
+        outgoingConnection = null;
         activeChatSession = chatSession;
         displayMessage("New session started.");
         controller.sessionStarted(ownPublicKey, othersPublicKey, chatSession.getRemoteAddress());
